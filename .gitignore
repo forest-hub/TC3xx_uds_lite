@@ -1,0 +1,24 @@
+/.vscode
+*.o
+*.d
+*.htm
+*.crf
+*.lnp
+*.lst
+*.Bak
+*.bin
+*.cc
+*.map
+*.py
+*.md
+*.yml
+*.s19
+*.html
+*.scvd
+*.uvoptx
+TriCore Debug (TASKING)/
+Objects/
+Bin/
+**/Debug/
+iLLD_RTOS_LWIP_UDS/app/TriCore Debug (TASKING)/
+iLLD_RTOS_LWIP_UDS/boot/TriCore Debug (TASKING)/
