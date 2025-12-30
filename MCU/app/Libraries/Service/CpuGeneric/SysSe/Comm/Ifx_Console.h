@@ -83,8 +83,8 @@ IFX_INLINE IfxStdIf_DPipe *Ifx_Console_getIo(void)
 #endif
 
 IFX_EXTERN void    Ifx_Console_init(IfxStdIf_DPipe *standardIo);
-IFX_EXTERN boolean Ifx_Console_print(pchar format, ...);
-IFX_EXTERN boolean Ifx_Console_printAlign(pchar format, ...);
+//IFX_EXTERN boolean print(pchar format, ...);
+IFX_EXTERN boolean printAlign(pchar format, ...);
 
 /**
  * \brief Decrement the alignment/indentation using the given value
@@ -105,8 +105,8 @@ IFX_INLINE void Ifx_Console_incrAlign(sint16 value)
 {
     Ifx_g_console.align += ((value == 0) ? (sint16)IFX_CFG_CONSOLE_INDENT_SIZE : value);
 }
-
-
+boolean print(pchar format, ...);
+void printInit(void);
 /** \} */
 //----------------------------------------------------------------------------------------
 #endif

@@ -44,6 +44,9 @@
 #include "Ifx_Types.h"
 #include "IfxCpu.h"
 #include "IfxScuWdt.h"
+#include "App_Config.h"
+#include <gpio.h>
+#include "uart.h"
 #include "FreeRTOS.h"
 #include "task.h"
 uint8 g_currentCanFdUseCase = 0;
@@ -58,14 +61,16 @@ void core0_main(void)
      */
     IfxScuWdt_disableCpuWatchdog(IfxScuWdt_getCpuWatchdogPassword());
     IfxScuWdt_disableSafetyWatchdog(IfxScuWdt_getSafetyWatchdogPassword());
-
+    initAllUart();
+    initGPIO();
     /* Wait for CPU sync event */
     IfxCpu_emitEvent(&g_cpuSyncEvent);
     IfxCpu_waitEvent(&g_cpuSyncEvent, 1);
 
     /* Application code: initialization of MULTICAN, LED, transmission and verification of the CAN messages */
-
-
+    xTaskCreate(task_led,  "APP LED", configMINIMAL_STACK_SIZE, NULL, 6, NULL);
+    xTaskCreate(task_uart, "task uart", configMINIMAL_STACK_SIZE, NULL, 8, NULL);
+    vTaskStartScheduler();
     /* If at this point the LED is not turned on, check "g_status" and "g_currentCanFdUseCase" variables */
     while (1)
     {

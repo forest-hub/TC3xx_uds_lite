@@ -1,4 +1,5 @@
 /.vscode
+/MCU/.metadata
 *.o
 *.d
 *.htm

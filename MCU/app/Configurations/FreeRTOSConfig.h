@@ -70,7 +70,6 @@
 #define configCONTEXT_SRC                   ( ( uint32_t * ) 0xF0038990 )
 
 /* #define IFX_CFG_EXTEND_TRAP_HOOKS */ /* Decomment this line if the project needs to extend trap hook functions */
-extern int vPortSyscallHandler( unsigned char id );
-#define IFX_CFG_CPU_TRAP_SYSCALL_CPU0_HOOK(t) vPortSyscallHandler(t.tId)
+
 
 #endif /* FREERTOS_CONFIG_H */

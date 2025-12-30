@@ -42,6 +42,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include "FreeRTOS.h"
+#include "semphr.h"
+//#include "IfxStdIf_DPipe.h"
+#include "Ifx_Console.h"
+#include <stdarg.h>
+#include <string.h>
+#include <assert.h>
 
 #include "Ifx_Console.h"
 #include "_Utilities/Ifx_Assert.h"
@@ -49,79 +56,138 @@
 
 Ifx_Console Ifx_g_console;
 
+// 打印队列配置（可根据需求调整）
+#define PRINT_QUEUE_LENGTH    16          // 队列最大容纳16个打印请求
+#define PRINT_BUF_MAX_SIZE    STDIF_DPIPE_MAX_PRINT_SIZE + 1  // 单个打印缓冲区大小（兼容原配置）
+#define CONSOLE_TASK_STACK    512         // 串口发送任务栈大小
+#define CONSOLE_TASK_PRIORITY 1           // 串口发送任务优先级（低于TCP任务，避免抢占关键逻辑）
+
+
+
+// 打印队列句柄（静态全局，仅当前文件可见）
+static QueueHandle_t s_print_queue = NULL;
+
+
+// -------------------------- 串口发送任务（核心） --------------------------
 /**
- * \brief Initialize the \ref Ifx_g_console object.
- * \param standardIo Pointer to the IfxStdIf_DPipe object used by the \ref Ifx_g_console.
+ * 串口发送任务：唯一访问串口硬件的任务，从队列中获取打印请求并执行发送
+ * 避免多线程直接操作串口，彻底消除资源竞争
+ */
+static void console_send_task(void *arg)
+{
+    (void)arg; // 未使用的参数，消除编译警告
+    char recv_buf[PRINT_BUF_MAX_SIZE]; // 接收队列中的打印数据
+    Ifx_SizeT send_len;                // 实际发送长度
+
+    while (1)
+    {
+        // 阻塞等待队列数据（无打印请求时任务休眠，不占用CPU）
+        if (xQueueReceive(s_print_queue, recv_buf, portMAX_DELAY) == pdPASS)
+        {
+            // 仅在串口未禁用发送时执行写入
+            if (!Ifx_g_console.standardIo->txDisabled)
+            {
+                // 计算打印数据长度（不含字符串结束符）
+                send_len = (Ifx_SizeT)strlen(recv_buf);
+
+                // 安全检查：避免发送长度超过缓冲区（防止驱动异常）
+                if (send_len <= PRINT_BUF_MAX_SIZE - 1)
+                {
+                    // 调用底层驱动发送数据（TIME_INFINITE确保数据发送完成）
+                    (void)IfxStdIf_DPipe_write(
+                        Ifx_g_console.standardIo,
+                        (void *)recv_buf,
+                        &send_len,
+                        TIME_INFINITE
+                    );
+                }
+            }
+        }
+    }
+}
+
+
+// -------------------------- 队列与任务初始化 --------------------------
+/**
+ * 控制台打印初始化：创建打印队列和串口发送任务
+ * 必须在FreeRTOS内核启动后（vTaskStartScheduler()）、首次调用打印前执行
+ */
+void printInit(void)
+{
+    // 1. 创建打印队列：每个元素为PRINT_BUF_MAX_SIZE字节的字符串
+    s_print_queue = xQueueCreate(PRINT_QUEUE_LENGTH, PRINT_BUF_MAX_SIZE);
+    IFX_ASSERT(IFX_VERBOSE_LEVEL_ERROR, s_print_queue != NULL); // 断言确保队列创建成功
+
+    // 2. 创建串口发送任务：唯一操作串口的任务
+    BaseType_t task_create_ret = xTaskCreate(
+        console_send_task,          // 任务函数
+        "ConsoleSendTask",          // 任务名称（调试用）
+        CONSOLE_TASK_STACK,         // 任务栈大小
+        NULL,                       // 任务参数（无）
+        CONSOLE_TASK_PRIORITY,      // 任务优先级
+        NULL                        // 任务句柄（无需外部访问，设为NULL）
+    );
+    // 断言确保任务创建成功（失败需检查FreeRTOS堆内存配置）
+    IFX_ASSERT(IFX_VERBOSE_LEVEL_ERROR, task_create_ret == pdPASS);
+}
+
+
+// -------------------------- 控制台初始化（原逻辑保留） --------------------------
+/**
+ * 控制台对象初始化：绑定底层串口DPipe接口
+ * @param standardIo：底层串口DPipe驱动接口句柄
  */
 void Ifx_Console_init(IfxStdIf_DPipe *standardIo)
 {
+    IFX_ASSERT(IFX_VERBOSE_LEVEL_ERROR, standardIo != NULL); // 断言确保驱动接口有效
     Ifx_g_console.standardIo = standardIo;
-    Ifx_g_console.align      = 0;
+    Ifx_g_console.align = 0;
+    printInit();
 }
 
 
+// -------------------------- 打印函数封装（对外接口） --------------------------
 /**
- * \brief Print formatted string into \ref Ifx_g_console.
- * \param format printf-compatible formatted string.
- * \retval TRUE if the string is printed successfully
- * \retval FALSE if the function failed.
+ * 格式化打印函数：将打印请求放入队列，由串口发送任务异步处理
+ * @param format：printf兼容的格式化字符串
+ * @return：TRUE-打印请求成功入队；FALSE-入队失败（队列满）
  */
-boolean Ifx_Console_print(pchar format, ...)
+boolean print(pchar format, ...)
 {
-    if (!Ifx_g_console.standardIo->txDisabled)
+    // 安全检查：队列未初始化则直接返回失败
+    if (s_print_queue == NULL)
     {
-        char      message[STDIF_DPIPE_MAX_PRINT_SIZE + 1];
-        Ifx_SizeT count;
-        va_list   args;
-        va_start(args, format);
-        vsprintf((char *)message, format, args);
-        va_end(args);
-        count = (Ifx_SizeT)strlen(message);
-        IFX_ASSERT(IFX_VERBOSE_LEVEL_ERROR, count < STDIF_DPIPE_MAX_PRINT_SIZE);
-
-        return IfxStdIf_DPipe_write(Ifx_g_console.standardIo, (void *)message, &count, TIME_INFINITE);
+        IFX_ASSERT(IFX_VERBOSE_LEVEL_ERROR, FALSE); // 触发断言，提示未初始化
+        return FALSE;
     }
-    else
+
+    char print_buf[PRINT_BUF_MAX_SIZE]; // 临时格式化缓冲区
+    va_list args;
+
+    // 1. 格式化打印内容（使用vsnprintf防止缓冲区溢出，原vsprintf存在越界风险）
+    va_start(args, format);
+    int fmt_ret = vsnprintf(
+        print_buf,
+        PRINT_BUF_MAX_SIZE - 1,  // 预留1字节给字符串结束符'\0'
+        format,
+        args
+    );
+    va_end(args);
+
+    // 2. 格式化结果检查：内容过长时截断（避免内存错乱）
+    if (fmt_ret < 0 || fmt_ret >= PRINT_BUF_MAX_SIZE - 1)
     {
-        return TRUE;
+        print_buf[PRINT_BUF_MAX_SIZE - 2] = '\0'; // 强制截断并添加结束符
+        IFX_ASSERT(IFX_VERBOSE_LEVEL_WARNING, FALSE); // 警告：打印内容被截断
     }
-}
 
+    // 3. 将格式化后的内容放入打印队列（等待100ms，避免队列满时立即失败）
+    BaseType_t queue_ret = xQueueSend(
+        s_print_queue,
+        print_buf,
+        pdMS_TO_TICKS(100)  // 队列满时等待100ms，平衡实时性与稳定性
+    );
 
-/**
- * \brief Print formatted string into \ref Ifx_g_console.
- * Indented with a number of spaces.
- * \param format printf-compatible formatted string.
- * \retval TRUE if the string is printed successfully
- * \retval FALSE if the function failed.
- */
-boolean Ifx_Console_printAlign(pchar format, ...)
-{
-    if (!Ifx_g_console.standardIo->txDisabled)
-    {
-        char      message[STDIF_DPIPE_MAX_PRINT_SIZE + 1];
-        Ifx_SizeT align, count;
-        char      spaces[17] = "                ";
-        va_list   args;
-        va_start(args, format);
-        vsprintf((char *)message, format, args);
-        va_end(args);
-        count = (Ifx_SizeT)strlen(message);
-        IFX_ASSERT(IFX_VERBOSE_LEVEL_ERROR, count < STDIF_DPIPE_MAX_PRINT_SIZE);
-        align = Ifx_g_console.align;
-
-        while (align > 0)
-        {
-            Ifx_SizeT scount;
-            scount = __min(align, 10);
-            IfxStdIf_DPipe_write(Ifx_g_console.standardIo, (void *)spaces, &scount, TIME_INFINITE);
-            align  = align - scount;
-        }
-
-        return IfxStdIf_DPipe_write(Ifx_g_console.standardIo, (void *)message, &count, TIME_INFINITE);
-    }
-    else
-    {
-        return TRUE;
-    }
+    // 返回入队结果：pdPASS表示成功，否则失败
+    return (queue_ret == pdPASS) ? TRUE : FALSE;
 }
