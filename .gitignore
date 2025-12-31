@@ -16,11 +16,6 @@ MCU/.metadata/
 *.yml
 *.s19
 *.html
-*.scvd
-*.uvoptx
 TriCore Debug (TASKING)/
-Objects/
-Bin/
-**/Debug/
-iLLD_RTOS_LWIP_UDS/app/TriCore Debug (TASKING)/
-iLLD_RTOS_LWIP_UDS/boot/TriCore Debug (TASKING)/
+MCU/app/TriCore Debug (TASKING)/
+MCU/boot/TriCore Debug (TASKING)/
