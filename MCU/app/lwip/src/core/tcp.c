@@ -1092,6 +1092,7 @@ tcp_connect(struct tcp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port,
   } else {
     /* check if we have a route to the remote host */
     netif = ip_route(&pcb->local_ip, &pcb->remote_ip);
+
   }
   if (netif == NULL) {
     /* Don't even try to send a SYN packet if we have no route since that will fail. */

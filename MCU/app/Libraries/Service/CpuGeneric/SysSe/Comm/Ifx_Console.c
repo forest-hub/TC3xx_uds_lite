@@ -152,6 +152,7 @@ void Ifx_Console_init(IfxStdIf_DPipe *standardIo)
  * @param format：printf兼容的格式化字符串
  * @return：TRUE-打印请求成功入队；FALSE-入队失败（队列满）
  */
+# if 0
 boolean print(pchar format, ...)
 {
     // 安全检查：队列未初始化则直接返回失败
@@ -191,3 +192,69 @@ boolean print(pchar format, ...)
     // 返回入队结果：pdPASS表示成功，否则失败
     return (queue_ret == pdPASS) ? TRUE : FALSE;
 }
+
+#else
+boolean print(pchar format, ...)
+{
+    int needs_newline = 1;
+    // 安全检查：队列未初始化则直接返回失败
+    if (s_print_queue == NULL)
+    {
+        IFX_ASSERT(IFX_VERBOSE_LEVEL_ERROR, FALSE);
+        return FALSE;
+    }
+
+    char print_buf[PRINT_BUF_MAX_SIZE]; // 临时格式化缓冲区
+    va_list args;
+
+    // --- 新增：处理换行符 ---
+    // 1. 定义一个带换行符的新格式字符串
+    char format_with_newline[PRINT_BUF_MAX_SIZE];
+    strncpy(format_with_newline, format, PRINT_BUF_MAX_SIZE - 3); // 预留空间给 \r\n 和 \0
+    format_with_newline[PRINT_BUF_MAX_SIZE - 3] = '\0'; // 确保字符串结束
+    size_t len = strlen(format_with_newline);
+    if (len > 0)
+       {
+           // 情况 B: 末尾是 '\r\n' (Windows 风格)
+            if (len > 1 && format_with_newline[len - 1] == '\n' && format_with_newline[len - 2] == '\r')
+           {
+               needs_newline = 0;
+           }
+       }
+
+       // 3. 如果需要，就追加 \r\n
+       if (needs_newline)
+       {
+           strncat(format_with_newline, "\r\n", 2);
+       }
+    // --- 换行符处理结束 ---
+
+    // 1. 使用新的格式字符串进行格式化
+    va_start(args, format);
+    int fmt_ret = vsnprintf(
+        print_buf,
+        PRINT_BUF_MAX_SIZE - 1,  // 预留1字节给字符串结束符'\0'
+        format_with_newline,     // <--- 使用带换行符的格式字符串
+        args
+    );
+    va_end(args);
+
+    // 2. 格式化结果检查：内容过长时截断
+    if (fmt_ret < 0 || fmt_ret >= PRINT_BUF_MAX_SIZE - 1)
+    {
+        print_buf[PRINT_BUF_MAX_SIZE - 2] = '\0'; // 强制截断并添加结束符
+        IFX_ASSERT(IFX_VERBOSE_LEVEL_WARNING, FALSE); // 警告：打印内容被截断
+    }
+
+    // 3. 将格式化后的内容放入打印队列
+    BaseType_t queue_ret = xQueueSend(
+        s_print_queue,
+        print_buf,
+        pdMS_TO_TICKS(100)
+    );
+
+    // 返回入队结果
+    return (queue_ret == pdPASS) ? TRUE : FALSE;
+}
+
+#endif

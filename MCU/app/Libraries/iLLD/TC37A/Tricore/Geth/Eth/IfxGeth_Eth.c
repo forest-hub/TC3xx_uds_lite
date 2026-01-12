@@ -47,7 +47,8 @@
 /******************************************************************************/
 
 #include "IfxGeth_Eth.h"
-
+#include "Ifx_Lwip.h"
+#include "uart.h"
 /******************************************************************************/
 /*-----------------------Exported Variables/Constants-------------------------*/
 /******************************************************************************/
@@ -242,17 +243,22 @@ void *IfxGeth_Eth_getReceiveBuffer(IfxGeth_Eth *geth, IfxGeth_RxDmaChannel chann
 }
 
 
+uint32 decun;
 void *IfxGeth_Eth_getTransmitBuffer(IfxGeth_Eth *geth, IfxGeth_TxDmaChannel channelId)
 {
     void                     *buffer = NULL_PTR;
     volatile IfxGeth_TxDescr *descr  = IfxGeth_Eth_getActualTxDescriptor(geth, channelId);
-
+   // print("dma ds list %x\r\n",geth->gethSFR->DMA_CH[0].TXDESC_LIST_ADDRESS);
+   // print("dma ds t %x\r\n",   geth->gethSFR->DMA_CH[0].TXDESC_TAIL_POINTER);
+   // print("dma ds len %x\r\n",geth->gethSFR->DMA_CH[0].TXDESC_RING_LENGTH);
     // check descriptor / buffer is free.
     if (descr->TDES3.R.OWN == 0)
     {
+        decun=0;
         buffer = ((void *)descr->TDES0.U);
     }
-
+   // print("dma ds OWN %x\r\n",descr->TDES3.R.OWN);
+  //  print("dma buffer %p\r\n",buffer);
     return buffer;
 }
 
@@ -584,7 +590,7 @@ void IfxGeth_Eth_initReceiveDescriptors(IfxGeth_Eth *geth, IfxGeth_Eth_RxChannel
     geth->rxChannel[channelId].rxDescrList = config->rxDescrList;
 
     volatile IfxGeth_RxDescr *descr = IfxGeth_Eth_getBaseRxDescriptor(geth, channelId);
-
+    print("init descr1 %x \r\n", descr);
     geth->rxChannel[channelId].rxDescrPtr = descr;
 
     IFX_ASSERT(IFX_VERBOSE_LEVEL_ERROR, (config->rxBuffer1Size) % 4 == 0);
@@ -601,6 +607,7 @@ void IfxGeth_Eth_initReceiveDescriptors(IfxGeth_Eth *geth, IfxGeth_Eth_RxChannel
         descr->RDES3.R.OWN   = 1; /* owned by DMA */
 
         descr                = &descr[1];
+        print("init descr2 %x \r\n", descr);
     }
 
     /* rest the current pointer to base pointer in the handle */
@@ -611,6 +618,7 @@ void IfxGeth_Eth_initReceiveDescriptors(IfxGeth_Eth *geth, IfxGeth_Eth_RxChannel
 
     IfxGeth_dma_setRxDescriptorListAddress(geth->gethSFR, channelId, (uint32)IfxGeth_Eth_getBaseRxDescriptor(geth, channelId));
     IfxGeth_dma_setRxDescriptorTailPointer(geth->gethSFR, channelId, (uint32)descr);
+    print("init descr3  %x \r\n", descr);
     IfxGeth_dma_setRxDescriptorRingLength(geth->gethSFR, channelId, (IFXGETH_MAX_RX_DESCRIPTORS - 1));
 }
 
@@ -709,13 +717,12 @@ void IfxGeth_Eth_sendTransmitBuffer(IfxGeth_Eth *geth, uint32 packetLength, IfxG
         descr              = IfxGeth_Eth_getActualTxDescriptor(geth, channelId); /* update the descr pointer */
         nextDescr          = descr;
     }
-
+//
     firstDescr->TDES3.R.FD                = 1;          /* first descriptor of the frame */
     geth->txChannel[channelId].txDescrPtr = firstDescr; /* point to first descriptor to initiate the transfer */
     IfxGeth_dma_setTxDescriptorTailPointer(geth->gethSFR, channelId, (uint32)nextDescr);
     IfxGeth_Eth_wakeupTransmitter(geth, channelId);     /* initialte the transfer */
     geth->txChannel[channelId].txDescrPtr = nextDescr;  /* update the handle pointer to next descriptor */
-
     geth->txChannel[channelId].txCount++;
 }
 
@@ -1022,12 +1029,16 @@ void IfxGeth_Eth_shuffleRxDescriptor(IfxGeth_Eth *geth, IfxGeth_RxDmaChannel cha
     {
         /* wrap around the descriptors */
         geth->rxChannel[channelId].rxDescrPtr = IfxGeth_Eth_getBaseRxDescriptor(geth, channelId);
+       // print("rxDescrPtr1 %x \r\n",geth->rxChannel[channelId].rxDescrPtr);
     }
     else
     {
         /* point to the next descriptor */
         geth->rxChannel[channelId].rxDescrPtr = &geth->rxChannel[channelId].rxDescrPtr[1];
+      //  print("rxDescrPtr2 %x \r\n",geth->rxChannel[channelId].rxDescrPtr);
     }
+
+
 }
 
 
@@ -1040,11 +1051,13 @@ void IfxGeth_Eth_shuffleTxDescriptor(IfxGeth_Eth *geth, IfxGeth_TxDmaChannel cha
     {
         /* wrap around the descriptors */
         geth->txChannel[channelId].txDescrPtr = IfxGeth_Eth_getBaseTxDescriptor(geth, channelId);
+       // print("txDescrPtr1 %x \r\n",geth->txChannel[channelId].txDescrPtr);
     }
     else
     {
         /* point to the next descriptor */
         geth->txChannel[channelId].txDescrPtr = &geth->txChannel[channelId].txDescrPtr[1];
+       // print("txDescrPtr2 %x \r\n",geth->txChannel[channelId].txDescrPtr);
     }
 }
 

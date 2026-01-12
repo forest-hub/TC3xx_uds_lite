@@ -110,7 +110,7 @@
 #define ETH_MDIO_PIN                IfxGeth_MDIO_P21_3_INOUT
 #define ETH_TXD0_PIN                IfxGeth_TXD0_P11_3_OUT
 #define ETH_TXD1_PIN                IfxGeth_TXD1_P11_2_OUT
-#define ISR_PRIORITY_GETH_TX        38                        /* Define the Ethernet transmit interrupt priority  */
+#define ISR_PRIORITY_GETH_TX        15                        /* Define the Ethernet transmit interrupt priority  */
 #define ISR_PRIORITY_GETH_RX        14                        /* Define the Ethernet receive interrupt priority   */
 #define netifINTERFACE_TASK_STACK_SIZE      ( 350 )
 #define netifINTERFACE_TASK_PRIORITY        ( configMAX_PRIORITIES - 1 )
@@ -234,18 +234,13 @@ static void low_level_init(netif_t *netif)
 
 
         /* create binary semaphore used for informing ethernetif of frame reception */
-        if (s_xSemaphore == NULL)
-        {
-          s_xSemaphore= xSemaphoreCreateCounting(20,0);
-        }
 
-        xTaskCreate(task_eth_Rx, "task ethRx", configMINIMAL_STACK_SIZE, NULL, 14, NULL);
         // initialize the module
         // make sure that the connected phy is also in the selected mode
         // important for PEF7071 on some boards waked up in RGMII mode
         // our reset will not work in this case
         // we was doing this in our main function where we get the ID's to detect the phy
-        IfxGeth_Eth_initModule(ethernetif, &GethConfig);
+
 
         /* We get the ID of Ethernet Phy do determine the board version, also needed for SCR */
         IfxPort_setPinModeOutput(ETH_MDC_PIN.pin.port, ETH_MDC_PIN.pin.pinIndex, IfxPort_OutputMode_pushPull, ETH_MDC_PIN.select);
@@ -254,42 +249,62 @@ static void low_level_init(netif_t *netif)
         // initialize the PHY
         IfxGeth_Eth_Phy_Dp83825i_init();
         // and enable transmitter/receiver
-
+        if (s_xSemaphore == NULL)
+        {
+          s_xSemaphore= xSemaphoreCreateCounting(20,0);
+        }
+        IfxGeth_Eth_initModule(ethernetif, &GethConfig);
+        xTaskCreate(task_eth_Rx, "task ethRx", configMINIMAL_STACK_SIZE, NULL, 14, NULL);
         xTaskCreate(task_eth_link, "task eth link", configMINIMAL_STACK_SIZE, NULL, 9, NULL);
-
-
         IfxGeth_Eth_startTransmitters(ethernetif, 1);
         IfxGeth_Eth_startReceivers(ethernetif, 1);
-
     }
 }
 
 void task_eth_Rx(void *arg)
 {
+    IfxGeth_Eth *ethernetif =g_Lwip.netif.state;
     while(1)
     {
         if (xSemaphoreTake( s_xSemaphore, 100)==pdTRUE)
         {
             ethernetif_input(&g_Lwip.netif);
         }
+      //  print("rx rps   %d\r\n",ethernetif->gethSFR->DMA_CH[0].STATUS.B.RPS);
+      //  print("rx drps  %d\r\n",ethernetif->gethSFR->DMA_DEBUG_STATUS0.B.RPS0);
+      //  print("rx dtps  %d\r\n",ethernetif->gethSFR->DMA_DEBUG_STATUS0.B.TPS0);
+        //IfxGeth_Eth_wakeupReceiver(&ethernetif->gethSFR, IfxGeth_RxDmaChannel_0);
+
+      //  if (IfxGeth_dma_isInterruptFlagSet(&ethernetif->gethSFR, IfxGeth_RxDmaChannel_0, IfxGeth_DmaInterruptFlag_receiveBufferUnavailable))
+      //    {
+       //       IfxGeth_dma_clearInterruptFlag(&ethernetif->gethSFR, IfxGeth_RxDmaChannel_0, IfxGeth_DmaInterruptFlag_receiveBufferUnavailable);
+       //       volatile IfxGeth_RxDescr *descr = IfxGeth_Eth_getActualRxDescriptor(&ethernetif->gethSFR, IfxGeth_RxDmaChannel_0);
+       //       ethernetif->gethSFR->DMA_CH[IfxGeth_RxDmaChannel_0].RXDESC_TAIL_POINTER.U =(uint32)descr;
+      //        IfxGeth_Eth_startReceiver(&ethernetif, IfxGeth_RxDmaChannel_0);
+       //   }
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
-
+uint8 linkflas;
 Ifx_GETH_MAC_PHYIF_CONTROL_STATUS ctrl_status;
 void task_eth_link(void *arg)
 {
     Ifx_GETH_MAC_PHYIF_CONTROL_STATUS ctrl_status;
     while (1)
     {
-        Ifx_Lwip *lwip = &g_Lwip;
+        if (g_Lwip.netif.flags & NETIF_FLAG_LINK_UP)
+            etharp_tmr();
               //Ifx_GETH_MAC_PHYIF_CONTROL_STATUS ctrl_status;
               ctrl_status.U = IfxGeth_Eth_Phy_Dp83825i_link_status();
               if (ctrl_status.B.LNKSTS == 0)
               {
+                  linkflas=0;
                   netif_set_link_down(&g_Lwip.netif);
               }
               else {
+                  //if (linkflas ==0){
                   IfxGeth_Eth *ethernetif = g_Lwip.netif.state;
+                  //linkflas=1;
                   // we set the correct duplexMode
                   if (ctrl_status.B.LNKMOD == 1)
                       IfxGeth_mac_setDuplexMode(ethernetif->gethSFR, IfxGeth_DuplexMode_fullDuplex);
@@ -307,11 +322,11 @@ void task_eth_link(void *arg)
                           // 1000MBit speed
                           IfxGeth_mac_setLineSpeed(ethernetif->gethSFR, IfxGeth_LineSpeed_1000Mbps);
                   netif_set_link_up(&g_Lwip.netif);
-
-        }
+                     //  }
+                 }
 
        vTaskDelay(pdMS_TO_TICKS(100));
-   }
+      }
 }
 /**
  * This function should do the actual transmission of the packet. The packet is
@@ -336,7 +351,7 @@ static err_t low_level_output(netif_t *netif, pbuf_t *p)
 
     u16_t        length = p->tot_len;
     LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE, ("low_level_output (p=%#x)\n", p));
-
+# if 0
 #if ETH_PAD_SIZE
     pbuf_header(p, -ETH_PAD_SIZE); /* drop the padding word */
 #endif
@@ -350,6 +365,7 @@ static err_t low_level_output(netif_t *netif, pbuf_t *p)
     else
     {
         //initiate transfer();
+
         u8_t *tbuf = IfxGeth_Eth_waitTransmitBuffer(ethernetif, IfxGeth_TxDmaChannel_0);
         u16_t l    = 0;
 
@@ -382,6 +398,47 @@ static err_t low_level_output(netif_t *netif, pbuf_t *p)
     LINK_STATS_INC(link.xmit);
 
     LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE, ("low_level_output: return OK\n"));
+
+#else
+   //// IfxCpu_disableInterrupts();
+   //   if( ethernetif->txChannel[0].txDescrPtr->TDES3.R.OWN == 0)
+      //  {
+         pbuf_header(p, -ETH_PAD_SIZE);
+         u8_t *tbuf = IfxGeth_Eth_waitTransmitBuffer(ethernetif, IfxGeth_TxDmaChannel_0);
+         u16_t l    = 0;
+
+         if( tbuf == NULL ) return  ERR_BUF;
+
+         for (q = p; q != NULL; q = q->next)
+         {
+            /* Send the data from the pbuf to the interface, one pbuf at a
+             * time. The size of the data in each pbuf is kept in the ->len
+             * variable. */
+            memcpy((u8_t *)&tbuf[l], q->payload, q->len);
+            l = l + q->len;
+            LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE, ("low_level_output: data=%#x, %d\n", q->payload, q->len));
+            LWIP_ASSERT("low_level_output: length overflow the buffer\n", (l < 2048));
+        }
+
+           //  print("12212121\r\n");
+           IfxGeth_TxDescr *pactTxDescriptor;
+           pactTxDescriptor = (IfxGeth_TxDescr *)IfxGeth_Eth_getActualTxDescriptor(ethernetif, IfxGeth_TxDmaChannel_0);
+           /* set the buffer length to the max. available */
+           pactTxDescriptor->TDES2.R.B1L = IFXGETH_MAX_TX_BUFFER_SIZE;
+            IfxGeth_Eth_sendTransmitBuffer(ethernetif, l, IfxGeth_TxDmaChannel_0);
+
+           //while(pactTxDescriptor->TDES3.R.OWN!=1);
+           pbuf_header(p, ETH_PAD_SIZE);
+
+       //  }else{
+          //  IfxGeth_TxDescr *pactTxDescriptor1;
+          //  pactTxDescriptor1 = (IfxGeth_TxDescr *)IfxGeth_Eth_getActualTxDescriptor(ethernetif, IfxGeth_TxDmaChannel_0);
+         //   pactTxDescriptor1->TDES2.U=0;
+          //  pactTxDescriptor1->TDES3.U=0;
+
+       //  return  ERR_USE;
+   //  }
+#endif
 
     return ERR_OK;
 }
@@ -472,7 +529,7 @@ static pbuf_t *low_level_input(netif_t *netif,uint32_t len)
 static pbuf_t *low_level_input(netif_t *netif)
 {
 
-#if 1
+#if 0
     // 1. 快速入参校验（单条指令级判断，减少分支）
     if (netif == NULL || netif->state == NULL) {
         return NULL;
@@ -543,7 +600,7 @@ static pbuf_t *low_level_input(netif_t *netif)
 
 fail: // 统一失败处理，减少指令数
     pbuf_free(p);
-    IfxGeth_Eth_freeReceiveBuffer(ethernetif, IfxGeth_RxDmaChannel_0);
+   // IfxGeth_Eth_freeReceiveBuffer(ethernetif, IfxGeth_RxDmaChannel_0);
     return NULL;
 
 #else
@@ -630,22 +687,21 @@ err_t ethernetif_input(netif_t *netif)
 {
     pbuf_t    *p;
     /* move received packet into a new pbuf */
+    taskENTER_CRITICAL();
     p = low_level_input(netif);
+    taskEXIT_CRITICAL();
     /* no packet could be read, silently ignore this */
     if (p == NULL) return ERR_MEM;
+    taskENTER_CRITICAL();
     if (netif->input(p, netif) != ERR_OK)
     {
         pbuf_free(p);
         p = NULL;
     }
+    taskEXIT_CRITICAL();
     return ERR_OK;
 }
 
-static void arp_timer(void *arg)
-{
-  etharp_tmr();
-  //sys_timeout(ARP_TMR_INTERVAL, arp_timer, NULL);
-}
 
 /**
  * Should be called at the beginning of the program to set up the
@@ -680,9 +736,6 @@ err_t ethernetif_init(netif_t *netif)
     /* initialize the hardware */
     low_level_init(netif);
 
-    etharp_init();
-    sys_timeout(ARP_TMR_INTERVAL, arp_timer, NULL);
-
     return ERR_OK;
 }
 
@@ -709,17 +762,9 @@ IFX_INTERRUPT(ISR_Geth_Tx, 0, ISR_PRIORITY_GETH_TX)
  */
 IFX_INTERRUPT(ISR_Geth_Rx, 0, ISR_PRIORITY_GETH_RX)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xHigherPriorityTaskWoken;
+    /* 获取信号量 */
     isrRxCount++;
-
-    xSemaphoreGiveFromISR( s_xSemaphore, &xHigherPriorityTaskWoken );
-   // Ifx_Console_print("eth RX\r\n");
-    /* Go through the application owned descriptors */
-   // ethernetif_input(&g_Lwip.netif);
-
-    /* Switch tasks if necessary. */
-    if( xHigherPriorityTaskWoken != pdFALSE )
-    {
-        portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
-    }
+    xSemaphoreGiveFromISR(s_xSemaphore,&xHigherPriorityTaskWoken);/* 释放二值信号量 */
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }

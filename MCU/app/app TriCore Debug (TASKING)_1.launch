@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="com.rt.hightec.agent.launcher.launchConfigurationType">
+    <stringAttribute key="ACC_HW" value="DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL"/>
+    <booleanAttribute key="ENABLE_AGENTLOG" value="false"/>
+    <booleanAttribute key="ENABLE_FLASHING" value="true"/>
+    <booleanAttribute key="ENABLE_STOPPING" value="true"/>
+    <stringAttribute key="EXECUTABLE_PATH" value="${workspace_loc}/app/TriCore Debug (TASKING)/app.elf"/>
+    <stringAttribute key="STOP_FUNCTION" value="core0_main"/>
+    <stringAttribute key="SVD" value="C:/Infineon/AURIX-Studio-1.10.28/build_system/bundled-artefacts-repo/svd/tc37xpd/1.1-2/device.svd"/>
+    <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="app"/>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
+        <listEntry value="/app"/>
+    </listAttribute>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
+        <listEntry value="4"/>
+    </listAttribute>
+    <stringAttribute key="org.eclipse.debug.ui.ATTR_LOCATION" value="/app/app TriCore Debug (TASKING)_1.launch"/>
+    <stringAttribute key="org.eclipse.debug.ui.ATTR_PROJECT_NAME" value="app"/>
+    <booleanAttribute key="org.eclipse.debug.ui.ATTR_SHARED" value="true"/>
+    <stringAttribute key="org.eclipse.tcf.debug.MemoryMap" value="[{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;5006b6bb-88ec-4b75-8e86-63909fb4917a&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;1e87330d-4c38-418b-8892-826afe9b121f&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;bea7c45d-5108-462b-bf50-be10950b6c2b&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 0: CPU0 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;4e775dcb-7092-468d-9219-dd70d46fb7f2&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;6644b9d7-e5da-4d67-b604-4b4e86db9648&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 0: CPU0 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;cf307b96-5407-402b-868f-23ba81048201&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;7cad6f17-ee32-4b0f-a10e-171baba3557e&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 0: CPU0 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;dc639ceb-7ee4-4fbd-9b33-d296ceeb22b7&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 1: CPU1 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;91992e35-3d8c-4bea-985d-213bed75caf2&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;b38d89b1-bad2-4a8c-a527-d9e5b1765495&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 0: CPU0 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;579a99b8-67af-4e90-96fb-53efd4b54fa7&quot;},{&quot;FileName&quot;:&quot;D:/DAQGitworplace/tc375_uds/MCU/app/TriCore Debug (TASKING)/app.elf&quot;,&quot;ID&quot;:&quot;/\&quot;DAS JDS miniWiggler JTAG/DAP/SPD V2 MW78NNBL\&quot;/Core 1: CPU1 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;c9478a2c-14ab-4746-ae5a-303d914ed13a&quot;}]"/>
+    <stringAttribute key="org.eclipse.tcf.debug.PeerID" value="TCP:127.0.0.1:1534"/>
+    <stringAttribute key="org.eclipse.tcf.debug.ProjectName" value="app"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.RunLocalAgent" value="false"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.RunLocalServer" value="false"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.UseLocalAgent" value="false"/>
+    <stringAttribute key="org.eclipse.tcf.debug.executable_name" value="${workspace_loc}/app/TriCore Debug (TASKING)/app.elf"/>
+    <stringAttribute key="sessionID" value="ba372eef-6def-4597-8387-f97f81935f19"/>
+</launchConfiguration>

@@ -287,7 +287,7 @@ void Ifx_Lwip_init(void)
 {
     ip_addr_t ipaddr, netmask, gw;
     struct netif *Netif_Init_Flag;        //调用netif_add()函数时的返回值,用于判断网络初始化是否成功s
-    IP4_ADDR(&ipaddr,192,168,60,61);
+    IP4_ADDR(&ipaddr,192,168,60,11);
     IP4_ADDR(&netmask,255,255,0,0);
     IP4_ADDR(&gw,0,0,0,0);
     /** - initialise LWIP (lwip_init()) */

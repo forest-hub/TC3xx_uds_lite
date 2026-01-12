@@ -42,7 +42,9 @@
  * \lastUpdated 2024-03-21
  *********************************************************************************************************************/
 #include "Ifx_Types.h"
+#include "IfxGeth_Eth.h"
 #include "IfxCpu.h"
+#include "IfxScuRcu.h"
 #include "IfxScuWdt.h"
 #include "App_Config.h"
 #include <gpio.h>
@@ -51,7 +53,28 @@
 #include "task.h"
 uint8 g_currentCanFdUseCase = 0;
 IFX_ALIGN(4) IfxCpu_syncEvent g_cpuSyncEvent = 0;
+/**
+  * @brief      系统复位
+  *
+  */
+void __SystemReset(void)
+{
+    /* Get the CPU EndInit password */
+    uint16 CPUEndinitPw = IfxScuWdt_getCpuWatchdogPassword();
 
+    /* Configure the request trigger in the Reset Configuration Register */
+    IfxScuRcu_configureResetRequestTrigger(IfxScuRcu_Trigger_sw, IfxScuRcu_ResetType_system);
+
+    /* Clear CPU EndInit protection to write in the SWRSTCON register of SCU */
+    IfxScuWdt_clearCpuEndinit(CPUEndinitPw);
+
+    /* Trigger a software reset based on the configuration of RSTCON register */
+    IfxCpu_triggerSwReset();
+
+    /* The following instructions are not executed if a SW reset occurs */
+    /* Set CPU EndInit protection */
+    IfxScuWdt_setCpuEndinit(CPUEndinitPw);
+}
 void core0_main(void)
 {
     IfxCpu_enableInterrupts();
@@ -63,6 +86,8 @@ void core0_main(void)
     IfxScuWdt_disableSafetyWatchdog(IfxScuWdt_getSafetyWatchdogPassword());
     initAllUart();
     initGPIO();
+    IfxGeth_enableModule(&MODULE_GETH);
+    Ifx_Lwip_init();
     /* Wait for CPU sync event */
     IfxCpu_emitEvent(&g_cpuSyncEvent);
     IfxCpu_waitEvent(&g_cpuSyncEvent, 1);
@@ -70,6 +95,7 @@ void core0_main(void)
     /* Application code: initialization of MULTICAN, LED, transmission and verification of the CAN messages */
     xTaskCreate(task_led,  "APP LED", configMINIMAL_STACK_SIZE, NULL, 6, NULL);
     xTaskCreate(task_uart, "task uart", configMINIMAL_STACK_SIZE, NULL, 8, NULL);
+    tcp_client_init();
     vTaskStartScheduler();
     /* If at this point the LED is not turned on, check "g_status" and "g_currentCanFdUseCase" variables */
     while (1)

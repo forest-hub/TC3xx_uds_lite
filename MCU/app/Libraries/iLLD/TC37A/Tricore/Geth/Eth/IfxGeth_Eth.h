@@ -254,7 +254,7 @@
 #include "_PinMap/IfxGeth_PinMap.h"
 #include "IfxPort_reg.h"
 #include "IfxPort_bf.h"
-
+#include "uart.h"
 /******************************************************************************/
 /*-----------------------------Data Structures--------------------------------*/
 /******************************************************************************/
@@ -1110,17 +1110,14 @@ IFX_INLINE boolean IfxGeth_Eth_isRxDataAvailable(IfxGeth_Eth *geth, IfxGeth_RxDm
 {
     return IfxGeth_Eth_getActualRxDescriptor(geth, channelId)->RDES3.R.OWN == 0;
 }
-
-
+static uint32 ctt1;
 IFX_INLINE void *IfxGeth_Eth_waitTransmitBuffer(IfxGeth_Eth *geth, IfxGeth_TxDmaChannel channelId)
 {
     void *tx;
-
-    do
-    {
-        tx = IfxGeth_Eth_getTransmitBuffer(geth, channelId);
-    } while (tx == NULL_PTR);
-
+   do
+   {
+      tx = IfxGeth_Eth_getTransmitBuffer(geth, channelId);
+   } while (tx == NULL_PTR);
     return tx;
 }
 

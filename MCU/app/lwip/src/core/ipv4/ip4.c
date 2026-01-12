@@ -221,6 +221,7 @@ ip4_route(const ip4_addr_t *dest)
                 ip4_addr1_16(dest), ip4_addr2_16(dest), ip4_addr3_16(dest), ip4_addr4_16(dest)));
     IP_STATS_INC(ip.rterr);
     MIB2_STATS_INC(mib2.ipoutnoroutes);
+
     return NULL;
   }
 

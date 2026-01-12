@@ -42,7 +42,8 @@
 #define LED1_BLINKY_PERIOD_MS (250)                         /* The period (in milliseconds) at which LED1 will blink */
 extern IfxPort_Pin_Config          test_Pin1;                     /* MCU ms synchronous tigger      */
 extern IfxPort_Pin_Config          test_Pin2;                     /* MCU ms synchronous tigger      */
-extern IfxCan_Can_Node                g_mcmcanNode[8];
+extern IfxCan_Can_Node             g_mcmcanNode[8];
+extern uint32 isrRxCount;
 /*********************************************************************************************************************/
 /*---------------------------------------------Function Implementations----------------------------------------------*/
 /*********************************************************************************************************************/
@@ -63,10 +64,10 @@ void task_uart(void *arg)
     {
         /* Toggle LED1 state */
         taskcun++;
-        print("task1 %d\r\n",taskcun);
+        print("task1 %d -> %d \r\n",taskcun ,isrRxCount);
        // Ifx_Console_print("uart test %d\r\n",taskcun);
         /* Delay 250ms */
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10000));
     }
 }
 
@@ -78,8 +79,8 @@ void task_led(void *arg)
     {
         /* Toggle LED1 state */
         IfxPort_togglePin(test_Pin1.port, test_Pin1.pinIndex);
-        taskcun++;
-              print("task2 %d\r\n",taskcun);
+        //taskcun++;
+             // print("task2 %d\r\n",taskcun);
         /* Delay 250ms */
         vTaskDelay(pdMS_TO_TICKS(250));
     }

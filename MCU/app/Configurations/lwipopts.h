@@ -27,15 +27,16 @@
 
 #ifndef __LWIPOPTS_H__
 #define __LWIPOPTS_H__
-
+#define BOARDNAME               "AURIXLK2TC375TP"   /* Board name, also used as hostname                                    */
 /*********************************************************************************************************************/
 /*------------------------------------------------------Macros-------------------------------------------------------*/
 /*********************************************************************************************************************/
 #define NO_SYS                  0                   /* Use LwIP without Operating System (no threads, no semaphores, etc.)  */
+#define NO_SYS_NO_TIMERS        0
 #define LWIP_NETIF_HOSTNAME     0                   /* Enable hostname option in DHCP                                       */
 #define SYS_LIGHTWEIGHT_PROT    1                   /* Disable inter-task protection                                        */
-#define TCP_TMR_INTERVAL        50
-#define BOARDNAME               "AURIXLK2TC375TP"   /* Board name, also used as hostname                                    */
+#define TCP_TMR_INTERVAL        250
+#define TCP_QUEUE_OOSEQ         0
 #define MEM_ALIGNMENT           4                   /* Set memory alignment to 4 byte (32-bit machine)                      */
 #define MEM_SIZE                (16 * 1024)         /* Size of the Heap                                                     */
 #define MEMP_NUM_PBUF           100
@@ -46,52 +47,47 @@
 #define TCP_MSS                 1460
 #define TCP_SND_BUF             (5 * 1024)   //(28*TCP_MSS)
 #define TCP_SND_QUEUELEN        100           //TCP_SND_QUEUELEN must be at least as much as (2 * TCP_SND_BUF/TCP_MSS)
-#define TCP_WND                 2048
+#define TCP_WND                 (2 * TCP_MSS)
 #define TCP_TTL                 255
-#define MEMP_NUM_NETCONN        16
-#define TCPIP_MBOX_SIZE         100
-#define DEFAULT_TCP_RECVMBOX_SIZE 8
-
 
 #define LWIP_TCP                1
-#define LWIP_SOCKET             1
 #define LWIP_ICMP               1
 #define LWIP_NETCONN            1
 
-#define TCPIP_THREAD_STACKSIZE          1000
-//#define DEFAULT_UDP_RECVMBOX_SIZE       2000
+/*
+   ---------------------------------
+   ---------- 操作系统选项 ----------
+   ---------------------------------
+*/
+#define LWIP_SOCKET             1
+#define DEFAULT_TCP_RECVMBOX_SIZE       10
+#define DEFAULT_ACCEPTMBOX_SIZE         10
 #define DEFAULT_THREAD_STACKSIZE        512
 
-//KEEPALIVE
-#define LWIP_TCP_KEEPALIVE      1
-#define TCP_KEEPIDLE_DEFAULT    20000   //3秒内双方无数据则发起保活探测
-#define TCP_KEEPINTVL_DEFAULT   1000    //1秒发送一次保活探测
-#define TCP_KEEPCNT_DEFAULT     3000    //3次探测无响应则断开
+#define TCPIP_THREAD_NAME              "lwip_thread"
+#define TCPIP_THREAD_STACKSIZE          1000
+#define TCPIP_MBOX_SIZE                 100
+#define TCPIP_THREAD_PRIO               5
+#define LWIP_SO_RCVTIMEO                1
 
-#define ARP_MAXAGE        60      // ARP 条目超时时间（秒），超时后自动删除
-#define ARP_QUEUEING      2        // 启用 ARP 队列，缓存待发送的数据包
-#define ARP_TABLE_SIZE    20      // ARP 缓存表大小
 #define LWIP_DHCP               0                   /* Enable DHCP protocol                                                 */
-#define TCP_ACK_DELAY 0
 #define ETH_PAD_SIZE            2                   /* Add 2 bytes before the Ethernet header to ensure payload alignment   */
 #define LWIP_COMPAT_MUTEX       0
-
-
-
-#define   __LWIP_DEBUG__                              /* Enable debugging through UART interface                              */
-//#define   ENABLE_UART_PRINTF
+#define __LWIP_DEBUG__    1
 #define LWIP_NETIF_EXT_STATUS_CALLBACK    1           /* Enable an extended callback function for netif                       */
 //#define LWIP_NETIF_STATUS_CALLBACK      1
 //#define LWIP_NETIF_LINK_CALLBACK        1
 #ifdef __LWIP_DEBUG__
-#define LWIP_DEBUG                                             /* Enable LwIP debugging                                                */
+#define LWIP_DEBUG                                  /* Enable LwIP debugging                                                */
 #endif
 #ifndef IFX_LWIP_DEBUG
-#define IFX_LWIP_DEBUG          LWIP_DBG_OFF         /* IFX LwIP debug level set to OFF                                      */
+#define IFX_LWIP_DEBUG          LWIP_DBG_OFF//LWIP_DBG_ON         /* IFX LwIP debug level set to OFF                                      */
 #endif
-#define DHCP_DEBUG              LWIP_DBG_OFF        /* Enable DHCP Debug                                                    */
-#define NETIF_DEBUG             LWIP_DBG_OFF         /* Enable NETIF Debug      */
-#define TCP_DEBUG               LWIP_DBG_OFF         /* Enable TCP Debug                                               */
-#define LWIP_DBG_TYPES_ON       LWIP_DBG_STATE      /* Enable only module state debug messages                              */
-
+#define DHCP_DEBUG              LWIP_DBG_OFF | LWIP_DBG_MASK_LEVEL       /* Enable DHCP Debug                                                    */
+#define NETIF_DEBUG             LWIP_DBG_OFF | LWIP_DBG_MASK_LEVEL         /* Enable NETIF Debug      */
+#define TCP_DEBUG               LWIP_DBG_OFF | LWIP_DBG_MASK_LEVEL         /* Enable TCP Debug                                               */
+#define LWIP_DBG_TYPES_ON       LWIP_DBG_OFF | LWIP_DBG_MASK_LEVEL      /* Enable only module state debug messages                              */
+#define SOCKETS_DEBUG           LWIP_DBG_OFF | LWIP_DBG_MASK_LEVEL
+#define TCP_OUTPUT_DEBUG        LWIP_DBG_OFF | LWIP_DBG_MASK_LEVEL
+#define TCP_RTO_DEBUG           LWIP_DBG_OFF | LWIP_DBG_MASK_LEVEL
 #endif /* __LWIPOPTS_H__ */
