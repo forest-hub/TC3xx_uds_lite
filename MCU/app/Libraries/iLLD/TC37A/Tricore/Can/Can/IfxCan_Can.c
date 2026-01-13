@@ -295,6 +295,7 @@ boolean IfxCan_Can_initNode(IfxCan_Can_Node *node, const IfxCan_Can_NodeConfig *
         /* enable CAN frame mode of transmission */
         IfxCan_Node_setFrameMode(nodeSfr, config->frame.mode);
 
+#if 0
         /* filter configuration */
 
         if ((config->filterConfig.messageIdLength == IfxCan_MessageIdLength_standard) ||
@@ -322,6 +323,7 @@ boolean IfxCan_Can_initNode(IfxCan_Can_Node *node, const IfxCan_Can_NodeConfig *
                 IfxCan_Node_rejectRemoteFramesWithExtendedId(nodeSfr);
             }
         }
+#endif
     }
 
     /* pins initialisation */
@@ -653,15 +655,15 @@ void IfxCan_Can_initNodeConfig(IfxCan_Can_NodeConfig *config, IfxCan_Can *can)
             .txBufferDataFieldSize    = IfxCan_DataFieldSize_8,
             .txEventFifoSize          = 0
         },
-        .filterConfig                                = {
-            .messageIdLength                    = IfxCan_MessageIdLength_standard,
-            .standardListSize                   = 2,
-            .extendedListSize                   = 0,
-            .rejectRemoteFramesWithStandardId   = 0,
-            .rejectRemoteFramesWithExtendedId   = 0,
-            .standardFilterForNonMatchingFrames = IfxCan_NonMatchingFrame_acceptToRxFifo0,
-            .extendedFilterForNonMatchingFrames = IfxCan_NonMatchingFrame_acceptToRxFifo0
-        },
+      //  .filterConfig                                = {
+      //      .messageIdLength                    = IfxCan_MessageIdLength_standard,
+      //      .standardListSize                   = 2,
+      //      .extendedListSize                   = 0,
+      //      .rejectRemoteFramesWithStandardId   = 0,
+     //       .rejectRemoteFramesWithExtendedId   = 0,
+     //       .standardFilterForNonMatchingFrames = IfxCan_NonMatchingFrame_acceptToRxFifo0,
+     //       .extendedFilterForNonMatchingFrames = IfxCan_NonMatchingFrame_acceptToRxFifo0
+     //   },
         .rxConfig                                    = {
             .rxMode                = IfxCan_RxMode_dedicatedBuffers,
             .rxBufferDataFieldSize = IfxCan_DataFieldSize_8,
@@ -676,8 +678,8 @@ void IfxCan_Can_initNodeConfig(IfxCan_Can_NodeConfig *config, IfxCan_Can *can)
         },
         .messageRAM                                  = {
             .baseAddress                    = (uint32)(can->can),
-            .standardFilterListStartAddress = 0x0,
-            .extendedFilterListStartAddress = 0x80,
+      //      .standardFilterListStartAddress = 0x0,
+      //      .extendedFilterListStartAddress = 0x80,
             .rxFifo0StartAddress            = 0x100,
             .rxFifo1StartAddress            = 0x200,
             .rxBuffersStartAddress          = 0x300,

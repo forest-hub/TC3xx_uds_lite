@@ -1,38 +1,5 @@
 #include "uds_server.h"
 
-typedef struct
-{
-    uint32 startAddr;         /*data start address*/
-    uint32 dataLen;           /*data len*/
-} tDowloadDataInfo;
-
-/*define security access info*/
-typedef struct
-{
-    uint8 subfunctionNumber;    /*subfunction number*/
-    uint8 requestSession;       /*request session*/
-    uint8 requestIDMode;        /*request id mode*/
-    uint8 requestSecurityLevel; /*request security level*/
-    void (*pfRoutine)(void);    /*routine*/
-} tUDS_SecurityAccessInfo;
-
-/*define write data subfunction*/
-typedef struct
-{
-    uint8 Subfunction;      /*subfunction*/
-    uint8 requestSession;   /*request session*/
-    uint8 requestIdMode;    /*request id mode*/
-    uint8 requestLevel;     /*request level*/
-    void (*pfRoutine)(void);/*routine*/
-} tUDS_WriteDataByIdentifierInfo;
-
-typedef enum
-{
-    ERASE_MEMORY_ROUTINE_CONTROL,       /*check erase memory routine control*/
-    CHECK_SUM_ROUTINE_CONTROL,          /*check sum routine control*/
-    CHECK_DEPENDENCY_ROUTINE_CONTROL,    /*check dependency routine control*/
-    GET_VERSION,                        /*get version*/
-} tCheckRoutineCtlInfo;
 
 #define DOWLOAD_DATA_ADDR_LEN (4u)      /*dowload data addr len*/
 #define DOWLOAD_DATA_LEN (4u)           /*dowload data len*/
@@ -41,20 +8,18 @@ typedef enum
 #define ERRO_REQUEST_ID (0u)             /*received ID failled*/
 #define SUPPORT_PHYSICAL_ADDR (1u << 0u) /*support physical ID request */
 #define SUPPORT_FUNCTION_ADDR (1u << 1u)  /*support function ID request*/
-
+/***********************UDS Information Global function************************/
+/*set current request id  SUPPORT_PHYSICAL_ADDR/SUPPORT_FUNCTION_ADDR */
+#define UDS_SetRequestIdType(xRequestIDType) (gs_stUdsInfo.requsetIdMode = (xRequestIDType))
+/*uds app time to count*/
+#define UdsAppTimeToCount(xTime) ((xTime) / gs_stUdsAppCfg.CalledPeriod)
 /*********************************************************/
-/***********************UDS App Const configuration Information************************/
-typedef struct
-{
-    uint8 CalledPeriod;         /*called uds period*/
-    /*security request count. If over this security request count, locked server some time.*/
-    uint8 SecurityRequestCnt;
-    tUdsTime xLockTime;         /*lock time*/
-    tUdsTime xS3Server;         /*s3 server time. */
-} tUdsTimeInfo;
+
+/*Get bootloader version*/
+const static uint8 gs_aGetVersion[] = {0x31u, 0x01, 0x03, 0xFFu};
 
 /* UDS time control information config table*/
-const static tUdsTimeInfo gs_stUdsAppCfg =
+const static uint16Info gs_stUdsAppCfg =
 {
     1u,
     3u,
@@ -62,8 +27,16 @@ const static tUdsTimeInfo gs_stUdsAppCfg =
     5000u
 };
 
-/*uds app time to count*/
-#define UdsAppTimeToCount(xTime) ((xTime) / gs_stUdsAppCfg.CalledPeriod)
+static tUdsInfo gs_stUdsInfo =
+{
+    DEFALUT_SESSION,
+    ERRO_REQUEST_ID,
+    NONE_SECURITY,
+    0u,
+    0u,
+};
+
+
 
 /*get UDS s3 watermark timer. return s3 * S3_TIMER_WATERMARK_PERCENT / 100*/
 uint32 UDS_GetUDSS3WatermarkTimerMs(void)
@@ -83,92 +56,15 @@ typedef struct
 static tJumpAppDelayTimeInfo gs_stJumpAPPDelayTimeInfo = {FALSE, 0u};
 #endif
 
-/*********************************************************/
-/***********************UDS Information************************/
-
 /**********************UDS Information Static function************************/
-static tUdsTime UDS_GetUdsS3ServerTime(void);
+static uint16 UDS_GetUdsS3ServerTime(void);
 
-static void UDS_SubUdsS3ServerTime(tUdsTime i_SubTime);
+static void UDS_SubUdsS3ServerTime(uint16 i_SubTime);
 
-static tUdsTime UDS_GetUdsSecurityReqLockTime(void);
+static uint16 UDS_GetUdsSecurityReqLockTime(void);
 
-static void UDS_SubUdsSecurityReqLockTime(tUdsTime i_SubTime);
+static void UDS_SubUdsSecurityReqLockTime(uint16 i_SubTime);
 
-typedef struct
-{
-    uint8 curSessionMode;  /*current session mode. default/program/extend mode*/
-    uint8 requsetIdMode;   /*SUPPORT_PHYSICAL_ADDR/SUPPORT_FUNCTION_ADDR*/
-    uint8 securityLevel;   /*current security level*/
-    tUdsTime xUdsS3ServerTime;      /*uds s3 server time*/
-    tUdsTime xSecurityReqLockTime;  /*security request lock time*/
-} tUdsInfo;
-
-/***********************UDS Information Static Global value************************/
-/* UDS support Session mode?��RequestId and Security level config */
-static tUdsInfo gs_stUdsInfo =
-{
-    DEFALUT_SESSION,
-    ERRO_REQUEST_ID,
-    NONE_SECURITY,
-    0u,
-    0u,
-};
-
-static tUdsTime UDS_GetUdsS3ServerTime(void)
-{
-    return (gs_stUdsInfo.xUdsS3ServerTime);
-}
-
-static void UDS_SubUdsS3ServerTime(tUdsTime i_SubTime)
-{
-    gs_stUdsInfo.xUdsS3ServerTime -= i_SubTime;
-}
-
-static tUdsTime UDS_GetUdsSecurityReqLockTime(void)
-{
-    return (gs_stUdsInfo.xSecurityReqLockTime);
-}
-
-static void UDS_SubUdsSecurityReqLockTime(tUdsTime i_SubTime)
-{
-    gs_stUdsInfo.xSecurityReqLockTime -= i_SubTime;
-}
-
-/*Is security request lock timeout?*/
-static uint8 UDS_IsSecurityRequestLockTimeout(void)
-{
-    uint8 status = 0u;
-
-    if(gs_stUdsInfo.xSecurityReqLockTime)
-    {
-        status = TRUE;
-    }
-    else
-    {
-        status = FALSE;
-    }
-
-    return status;
-}
-
-/***********************UDS Information Global function************************/
-/*set current request id  SUPPORT_PHYSICAL_ADDR/SUPPORT_FUNCTION_ADDR */
-#define UDS_SetRequestIdType(xRequestIDType) (gs_stUdsInfo.requsetIdMode = (xRequestIDType))
-
-/*restart s3server time*/
-void UDS_RestartS3Server(void)
-{
-    gs_stUdsInfo.xUdsS3ServerTime = UdsAppTimeToCount(gs_stUdsAppCfg.xS3Server);
-}
-
-/*set currrent session mode. DEFAULT_SESSION/PROGRAM_SESSION/EXTEND_SESSION */
-void UDS_SetCurrentSession(const uint8 i_setSessionMode)
-{
-    gs_stUdsInfo.curSessionMode = i_setSessionMode;
-}
-
-/*********************************************************/
 /**********************UDS service configuration and function************************/
 
 /**********************UDS service correlation subfunction define************************/
@@ -192,19 +88,19 @@ static void UDS_DoResetMCU(uint8 i_Txstatus);
 
 /******************************UDS service main function define***************************************/
 /*dig session*/
-static void UDS_DigSession(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
+static void UDS_DigSession_0x10(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 
 /*control DTC setting*/
-static void UDS_ControlDTCSetting(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
+static void UDS_ControlDTCSetting_0x85(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 
 /*communication control*/
-static void UDS_CommunicationControl(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
+static void UDS_CommunicationControl_0x28(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 
 /*routine control*/
-static void UDS_RoutineControl(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
+static void UDS_RoutineControl_0x31(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 
 /*Tester present service*/
-static void UDS_TesterPresent(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
+static void UDS_TesterPresent_0x3E(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 
 /***********************UDS service Static Global value************************/
 /*dig serverice config table*/
@@ -216,7 +112,7 @@ const static tUDSService gs_astUDSService[] =
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
-        UDS_DigSession
+        UDS_DigSession_0x10
     },
 
     /*communication control*/
@@ -225,7 +121,7 @@ const static tUDSService gs_astUDSService[] =
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
-        UDS_CommunicationControl
+        UDS_CommunicationControl_0x28
     },
 
     /*control DTC setting*/
@@ -234,7 +130,7 @@ const static tUDSService gs_astUDSService[] =
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
-        UDS_ControlDTCSetting
+        UDS_ControlDTCSetting_0x85
     },
 
     /*routine control*/
@@ -243,7 +139,7 @@ const static tUDSService gs_astUDSService[] =
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
-        UDS_RoutineControl
+        UDS_RoutineControl_0x31
     },
 
     /*routine control*/
@@ -252,16 +148,68 @@ const static tUDSService gs_astUDSService[] =
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
-        UDS_TesterPresent
+        UDS_TesterPresent_0x3E
     },
 };
 
-/*Get bootloader version*/
-const static uint8 gs_aGetVersion[] = {0x31u, 0x01, 0x03, 0xFFu};
+
+/***********************UDS Information Static Global value************************/
+/* UDS support Session mode?��RequestId and Security level config */
+
+
+static uint16 UDS_GetUdsS3ServerTime(void)
+{
+    return (gs_stUdsInfo.xUdsS3ServerTime);
+}
+
+static void UDS_SubUdsS3ServerTime(uint16 i_SubTime)
+{
+    gs_stUdsInfo.xUdsS3ServerTime -= i_SubTime;
+}
+
+static uint16 UDS_GetUdsSecurityReqLockTime(void)
+{
+    return (gs_stUdsInfo.xSecurityReqLockTime);
+}
+
+static void UDS_SubUdsSecurityReqLockTime(uint16 i_SubTime)
+{
+    gs_stUdsInfo.xSecurityReqLockTime -= i_SubTime;
+}
+
+/*Is security request lock timeout?*/
+static uint8 UDS_IsSecurityRequestLockTimeout(void)
+{
+    uint8 status = 0u;
+
+    if(gs_stUdsInfo.xSecurityReqLockTime)
+    {
+        status = TRUE;
+    }
+    else
+    {
+        status = FALSE;
+    }
+
+    return status;
+}
+
+/*restart s3server time*/
+void UDS_RestartS3Server(void)
+{
+    gs_stUdsInfo.xUdsS3ServerTime = UdsAppTimeToCount(gs_stUdsAppCfg.xS3Server);
+}
+
+/*set currrent session mode. DEFAULT_SESSION/PROGRAM_SESSION/EXTEND_SESSION */
+void UDS_SetCurrentSession(const uint8 i_setSessionMode)
+{
+    gs_stUdsInfo.curSessionMode = i_setSessionMode;
+}
+
 
 /**********************UDS service correlation main function realizing************************/
 /*dig session*/
-static void UDS_DigSession(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+static void UDS_DigSession_0x10(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
     uint8 requestSubfunction = 0u;
 
@@ -320,7 +268,7 @@ static void UDS_DigSession(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMs
 }
 
 /*control DTC setting*/
-static void UDS_ControlDTCSetting(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+static void UDS_ControlDTCSetting_0x85(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
     uint8 requestSubfunction = 0u;
 
@@ -350,7 +298,7 @@ static void UDS_ControlDTCSetting(struct UDSServiceInfo* i_pstUDSServiceInfo, tU
 }
 
 /*communication control*/
-static void UDS_CommunicationControl(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+static void UDS_CommunicationControl_0x28(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
     uint8 requestSubfunction = 0u;
 
@@ -385,7 +333,7 @@ static void UDS_CommunicationControl(struct UDSServiceInfo* i_pstUDSServiceInfo,
 }
 
 /*routine control*/
-static void UDS_RoutineControl(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+static void UDS_RoutineControl_0x31(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
     uint8 ret = FALSE;
     uint32 ReceivedCrc = 0u;
@@ -430,7 +378,7 @@ static void UDS_RoutineControl(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsA
 }
 
 /*Tester present service*/
-static void UDS_TesterPresent(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+static void UDS_TesterPresent_0x3E(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
     uint8 requestSubfunction = 0u;
 
@@ -465,10 +413,10 @@ static void UDS_DoResetMCU(uint8 Txstatus)
     if(TX_MSG_SUCCESSFUL == Txstatus)
     {
         /*request enter bootloader mode*/
-        Boot_RequestEnterBootloader();
+       // Boot_RequestEnterBootloader();
 
         /*reset ECU*/
-        WATCHDOG_HAL_SystemRest();
+       // WATCHDOG_HAL_SystemRest();
         while(1)
         {
             /*wait watch dog reset mcu*/
@@ -638,7 +586,7 @@ static void UDS_AppMemset(const uint8 i_setValue, const uint16 i_len, void *m_pv
 }
 
 /*check routine control right?*/
-static uint8 UDS_IsCheckUDS_RoutineControlRight(const tCheckRoutineCtlInfo i_eCheckRoutineCtlId,
+static uint8 UDS_IsCheckUDS_RoutineControl_0x31Right(const tCheckRoutineCtlInfo i_eCheckRoutineCtlId,
                                         const tUdsAppMsgInfo *m_pstPDUMsg)
 {
     uint8 Index = 0u;
@@ -685,7 +633,7 @@ static uint8 UDS_IsGetVersion(const tUdsAppMsgInfo *m_pstPDUMsg)
 {
     ASSERT(NULL_PTR == m_pstPDUMsg);
 
-    return UDS_IsCheckUDS_RoutineControlRight(GET_VERSION, m_pstPDUMsg);
+    return UDS_IsCheckUDS_RoutineControl_0x31Right(GET_VERSION, m_pstPDUMsg);
 }
 
 typedef void (*tpfFlashOperateMoreTimecallback)(uint8);

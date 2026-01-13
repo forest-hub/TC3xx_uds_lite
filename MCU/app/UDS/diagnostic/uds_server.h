@@ -13,12 +13,10 @@
 #define APP_HW_VERSION {APP_TYPE, 0x01, 0x0, 0x00}
 /********************************************************************/
 
-typedef uint16 tUdsTime;
-
 typedef struct
 {
-    tUdsId xUdsId;
-    tUdsLen xDataLen;
+    uint32 xUdsId;
+    uint32 xDataLen;
     uint8 aDataBuf[150u];
     /*tx message call back*/
     void (*pfUDSTxMsgServiceCallBack)(uint8);
@@ -32,6 +30,60 @@ typedef struct UDSServiceInfo
     uint8 reqLevel;   /*request level.Lock/unlock*/
     void (*pfSerNameFun)(struct UDSServiceInfo*, tUdsAppMsgInfo *);
 } tUDSService;
+
+
+typedef struct
+{
+    uint32 startAddr;         /*data start address*/
+    uint32 dataLen;           /*data len*/
+} tDowloadDataInfo;
+
+/*define security access info*/
+typedef struct
+{
+    uint8 subfunctionNumber;    /*subfunction number*/
+    uint8 requestSession;       /*request session*/
+    uint8 requestIDMode;        /*request id mode*/
+    uint8 requestSecurityLevel; /*request security level*/
+    void (*pfRoutine)(void);    /*routine*/
+} tUDS_SecurityAccessInfo;
+
+/*define write data subfunction*/
+typedef struct
+{
+    uint8 Subfunction;      /*subfunction*/
+    uint8 requestSession;   /*request session*/
+    uint8 requestIdMode;    /*request id mode*/
+    uint8 requestLevel;     /*request level*/
+    void (*pfRoutine)(void);/*routine*/
+} tUDS_WriteDataByIdentifierInfo;
+
+typedef enum
+{
+    ERASE_MEMORY_ROUTINE_CONTROL,       /*check erase memory routine control*/
+    CHECK_SUM_ROUTINE_CONTROL,          /*check sum routine control*/
+    CHECK_DEPENDENCY_ROUTINE_CONTROL,    /*check dependency routine control*/
+    GET_VERSION,                        /*get version*/
+} tCheckRoutineCtlInfo;
+
+/***********************UDS App Const configuration Information************************/
+typedef struct
+{
+    uint8 CalledPeriod;         /*called uds period*/
+    /*security request count. If over this security request count, locked server some time.*/
+    uint8 SecurityRequestCnt;
+    uint16 xLockTime;         /*lock time*/
+    uint16 xS3Server;         /*s3 server time. */
+} uint16Info;
+
+typedef struct
+{
+    uint8 curSessionMode;  /*current session mode. default/program/extend mode*/
+    uint8 requsetIdMode;   /*SUPPORT_PHYSICAL_ADDR/SUPPORT_FUNCTION_ADDR*/
+    uint8 securityLevel;   /*current security level*/
+    uint16 xUdsS3ServerTime;      /*uds s3 server time*/
+    uint16 xSecurityReqLockTime;  /*security request lock time*/
+} tUdsInfo;
 
 /*********************************************************/
 
@@ -70,51 +122,51 @@ typedef struct UDSServiceInfo
 
 /*********************************************************/
 /*set currrent session mode. DEFAULT_SESSION/PROGRAM_SESSION/EXTEND_SESSION */
-extern void UDS_SetCurrentSession(const uint8 i_setSessionMode);
+ void UDS_SetCurrentSession(const uint8 i_setSessionMode);
 
 /*Is current session DEFAULT return TRUE, else return FALSE.*/
-extern uint8 UDS_IsCurDefaultSession(void);
+ uint8 UDS_IsCurDefaultSession(void);
 
 /*Is S3server timeout?*/
-extern uint8 UDS_IsS3ServerTimeout(void);
+ uint8 UDS_IsS3ServerTimeout(void);
 
 /*restart s3server time*/
-extern void UDS_RestartS3Server(void);
+ void UDS_RestartS3Server(void);
 
 /*Is current session can request?*/
-extern uint8 UDS_IsCurSessionCanRequest(uint8 i_sessionMode);
+ uint8 UDS_IsCurSessionCanRequest(uint8 i_sessionMode);
 
 /*save received request id. If receved physical/function/none phy
 and function ID set rceived physicali/function/erro ID.*/
-extern void UDS_SaveRequestIdType(const uint32 i_serRequestID);
+ void UDS_SaveRequestIdType(const uint32 i_serRequestID);
 
 /*Is current received id can request?*/
-extern uint8 UDS_IsCurRxIdCanRequest(uint8 i_serRequestIdMode);
+ uint8 UDS_IsCurRxIdCanRequest(uint8 i_serRequestIdMode);
 
 /*set security level*/
-extern void UDS_SetSecurityLevel(const uint8 i_setSecurityLevel);
+ void UDS_SetSecurityLevel(const uint8 i_setSecurityLevel);
 
 /*Is current security level can request?*/
-extern uint8 UDS_IsCurSecurityLevelRequest(uint8 i_securityLevel);
+ uint8 UDS_IsCurSecurityLevelRequest(uint8 i_securityLevel);
 
 /* Get UDS config Service information */
 tUDSService* UDS_GetUDSServiceInfo(uint8 *m_pSupServItem);
 
 /* If Rx UDS msg, set g_ucIsRxUdsMsg TURE */
-extern void UDS_SetIsRxUdsMsg(const uint8 i_setValue);
+ void UDS_SetIsRxUdsMsg(const uint8 i_setValue);
 
-extern uint8 UDS_IsRxUdsMsg(void);
+ uint8 UDS_IsRxUdsMsg(void);
 
 /*set negative erro code*/
-extern void UDS_SetNegativeErroCode(const uint8 i_UDSServiceNum,
+ void UDS_SetNegativeErroCode(const uint8 i_UDSServiceNum,
                                 const uint8 i_erroCode,
                                 tUdsAppMsgInfo *m_pstPDUMsg);
 
 /*uds time control*/
-extern void UDS_SystemTickCtl(void);
+ void UDS_SystemTickCtl(void);
 
 /*write message to host basd on UDS for request enter bootloader mode*/
-extern boolean UDS_TxMsgToHost(void);
+ boolean UDS_TxMsgToHost(void);
 
 
 #endif /*__UDS_APP_CFG_H__*/

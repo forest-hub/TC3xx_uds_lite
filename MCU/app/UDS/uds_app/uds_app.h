@@ -1,7 +1,7 @@
 #ifndef __UDS_APP_H__
 #define __UDS_APP_H__
 
-#include <uds_app.h>
+#include "uds_server.h"
 
 /*uds main function. ISO14229*/
 extern void UDS_MainFun(void);

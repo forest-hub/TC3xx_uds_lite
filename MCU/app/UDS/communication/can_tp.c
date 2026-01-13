@@ -1,131 +1,17 @@
-#include "user_config.h"
+
 #include "can_tp.h"
-#include "can_if.h"
 
-/*CAN/CAN FD define*/
-typedef enum
-{
-    CANTP_STANDARD,  /*standard CAN*/
-    CANTP_FD,        /*CAN FD*/
-}tCANType;
 
-/*********************************************************
-**  SF  --  signle frame
-**  FF  --  first frame
-**  FC  --  flow control
-**  CF  --  consective frame
-*********************************************************/
-
-typedef enum
-{
-    IDLE,      /*idle*/
-    RX_SF,   /*wait signle frame*/
-    RX_FF,   /*wait first frame*/
-    RX_FC,   /*wait flow control frame*/
-    RX_CF,   /*wait consective frame*/
-
-    TX_SF,     /*tx signle frame*/
-    TX_FF,     /*tx first frame*/
-    TX_FC,     /*tx flow control*/
-    TX_CF,     /*tx consective frame*/
-
-    WAITTING_TX, /*watting tx message*/
-
-    WAIT_CONFIRM /*wait confrim*/
-}tCanTpWorkStatus;
-
-typedef enum
-{
-    SF,        /*signle frame value*/
-    FF,        /*first frame value*/
-    CF,        /*consective frame value*/
-    FC         /*flow control value*/
-}tNetWorkFrameType;
-
-typedef enum
-{
-    CONTINUE_TO_SEND, /*continue to send*/
-    WAIT_FC,          /*wait flow control*/
-    OVERFLOW_BUF      /*overflow buf*/
-}tFlowStatus;
-
-typedef enum
-{
-    N_OK = 0,    /*This value means that the service execution has completed successfully; it can be issued to a service user on both the sender and receiver side*/
-    N_TIMEOUT_A, /*This value is issued to the protocol user when the timer N_Ar/N_As has passed its time-out
-                            value N_Asmax/N_Armax; it can be issued to service user on both the sender and receiver side.*/
-    N_TIMEOUT_Bs, /*This value is issued to the service user when the timer N_Bs has passed its time-out value
-                                N_Bsmax; it can be issued to the service user on the sender side only.*/
-    N_TIMEOUT_Cr, /*This value is issued to the service user when the timer N_Cr has passed its time-out value
-                    N_Crmax; it can be issued to the service user on the receiver side only.*/
-    N_WRONG_SN,   /*This value is issued to the service user upon reception of an unexpected sequence number
-                    (PCI.SN) value; it can be issued to the service user on the receiver side only.*/
-    N_INVALID_FS, /*This value is issued to the service user when an invalid or unknown FlowStatus value has
-                    been received in a flow control (FC) N_PDU; it can be issued to the service user on the sender side only.*/
-    N_UNEXP_PDU,  /*This value is issued to the service user upon reception of an unexpected protocol data unit;
-                    it can be issued to the service user on the receiver side only.*/
-    N_WTF_OVRN,   /*This value is issued to the service user upon reception of flow control WAIT frame that
-                    exceeds the maximum counter N_WFTmax.*/
-    N_BUFFER_OVFLW, /*This value is issued to the service user upon reception of a flow control (FC) N_PDU with
-                    FlowStatus = OVFLW. It indicates that the buffer on the receiver side of a segmented
-                    message transmission cannot store the number of bytes specified by the FirstFrame
-                    DataLength (FF_DL) parameter in the FirstFrame and therefore the transmission of the
-                    segmented message was aborted. It can be issued to the service user on the sender side
-                    only.*/
-    N_ERROR       /*This is the general error value. It shall be issued to the service user when an error has been
-                    detected by the network layer and no other parameter value can be used to better describe
-                    the error. It can be issued to the service user on both the sender and receiver side.*/
-}tN_Result;
-
-typedef enum{
-    CANTP_TX_MSG_IDLE = 0, /*CAN TP tx message idle*/
-    CANTP_TX_MSG_SUCC,     /*CAN TP tx message successful*/
-    CANTP_TX_MSG_FAIL,     /*CAN TP tx message fail*/
-    CANTP_TX_MSG_WAITTING /*CAN TP waitting tx message*/
-}tCanTPTxMsgStatus;
-
-typedef struct
-{
-    tUdsId xCanTpId;                           /*can tp message id*/
-    tCanTpDataLen xPduDataLen;                 /*pdu data len(Rx/Tx data len)*/
-    tCanTpDataLen xFFDataLen;                  /*Rx/Tx FF data len*/
-    uint8 aDataBuf[MAX_CF_DATA_LEN]; /*Rx/Tx data buf*/
-}tCanTpDataInfo;
-
-typedef struct
-{
-    uint8 ucSN;          /*SN*/
-    uint8 ucBlockSize;   /*Block size*/
-    tNetTime xSTmin;             /*STmin*/
-    tNetTime xMaxWatiTimeout;    /*timeout time*/
-    tCanTpDataInfo stCanTpDataInfo;
-}tCanTpInfo;
-
-typedef struct
-{
-    uint8 isFree;            /*rx message status. TRUE = not received messag.*/
-    tUdsId xMsgId;                     /*received message id*/
-    uint8 msgLen;            /*received message len*/
-    uint8 aMsgBuf[MAX_CAN_DATA_LEN]; /*message data buf*/
-}tCanTpMsg;
-
-typedef tN_Result (*tpfCanTpFun)(tCanTpMsg *, tCanTpWorkStatus *);
-typedef struct
-{
-    tCanTpWorkStatus eCanTpStaus;
-    tpfCanTpFun pfCanTpFun;
-}tCanTpFunInfo;
 
 /***********************Global value*************************/
- static tCanTpInfo gs_stCanTPTxDataInfo; /*can tp tx data*/
- static tNetTime gs_xCanTPTxSTmin = 0u; /*tx STmin*/
- static uint32 gs_CANTPTxMsgMaxWaitTime = 0u;/*tx message max wait time, RX / TX frame both used waitting status*/
- static tCanTpInfo gs_stCanTPRxDataInfo; /*can tp rx data*/
- static tCanTpWorkStatus gs_eCanTpWorkStatus = IDLE;
+ static tCanTpInfo                 gs_stCanTPTxDataInfo; /*can tp tx data*/
+ static uint16                     gs_xCanTPTxSTmin = 0u; /*tx STmin*/
+ static uint32                     gs_CANTPTxMsgMaxWaitTime = 0u;/*tx message max wait time, RX / TX frame both used waitting status*/
+ static tCanTpInfo                 gs_stCanTPRxDataInfo; /*can tp rx data*/
+ static tCanTpWorkStatus           gs_eCanTpWorkStatus = IDLE;
  static volatile tCanTPTxMsgStatus gs_eCANTPTxMsStatus = CANTP_TX_MSG_IDLE;
- static tpfNetTxCallBack gs_pfCANTPTxMsgCallBack = NULL_PTR;
-/*********************************************************/
-
+ static tpfNetTxCallBack           gs_pfCANTPTxMsgCallBack = NULL_PTR;
+ /*********************************************************/
 /***********************Static function***********************/
 #define CanTpTimeToCount(xTime) ((xTime) / g_stCANUdsNetLayerCfgInfo.ucCalledPeriod)
 #define IsSF(xNetWorkFrameType) ((((xNetWorkFrameType) >> 4u) ==  SF) ? TRUE : FALSE)
@@ -154,15 +40,6 @@ do{\
     }\
 }while(0u)
 
-/*get RX SF frame message length*/
-static boolean GetRXSFFrameMsgLength(const uint32 i_RxMsgLen, const uint8 *i_pMsgBuf, uint32 *o_pFrameLen);
-
-/*Get valid message position*/
-static boolean GetRxSFMsgValidPosition(const uint32 i_RxMsgLen, uint8* o_pDataStartPos);
-
-/*get RX FF frame message length*/
-static boolean GetRXFFFrameMsgLength(const uint32 i_RxMsgLen, const uint8 *i_pMsgBuf, uint32 *o_pFrameLen);
-
 /*check received message length valid or not?*/
 #define IsRxMsgLenValid(address_type, frameLen, RXCANMsgLen) ((address_type == NORMAL_ADDRESSING) ? (frameLen <= RXCANMsgLen - 1) : (frameLen <= RXCANMsgLen - 2))
 
@@ -170,7 +47,7 @@ static boolean GetRXFFFrameMsgLength(const uint32 i_RxMsgLen, const uint8 *i_pMs
 #define SaveFFDataLen(i_xRevFFDataLen) (gs_stCanTPRxDataInfo.stCanTpDataInfo.xFFDataLen = i_xRevFFDataLen)
 
 /*set BS*/
-#define SetBlockSize(pucBSBuf, xBlockSize) (*(pucBSBuf) = (uint8)(xBlockSize))
+#define Seuint16(pucBSBuf, xBlockSize) (*(pucBSBuf) = (uint8)(xBlockSize))
 
 /*add block size*/
 #define AddBlockSize()\
@@ -208,7 +85,7 @@ do{\
 /*clear receive data buf*/
 #define ClearRevDataBuf()\
 do{\
-    fsl_memset(&gs_stCanTPRxDataInfo,0u,sizeof(gs_stCanTPRxDataInfo));\
+    memset(&gs_stCanTPRxDataInfo,0u,sizeof(gs_stCanTPRxDataInfo));\
 }while(0u)
 
 /*add rev data len*/
@@ -326,102 +203,38 @@ do{\
 
 /*get cur CAN TP status PTR*/
 #define GetCurCANTPStatusPtr() (&gs_eCanTpWorkStatus)
-
-/*can tp IDLE*/
-static tN_Result CANTP_DoCanTpIdle(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*do receive signle frame*/
-static tN_Result CANTP_DoReceiveSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*do receive first frame*/
-static tN_Result CANTP_DoReceiveFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*do receive conective frame*/
-static tN_Result CANTP_DoReceiveCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*transmit FC callback*/
+ /*********************************************************/
 static void CANTP_DoTransmitFCCallBack(void);
-
-/*Transmit flow control frame*/
-static tN_Result CANTP_DoTransmitFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*transmit signle frame*/
-static tN_Result CANTP_DoTransmitSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*transmit SF callback*/
 static void CANTP_DoTransmitSFCallBack(void);
-
-/*transmit FF callback*/
 static void CANTP_DoTransmitFFCallBack(void);
-
-/*transmitt first frame*/
-static tN_Result CANTP_DoTransmitFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*wait flow control frame*/
-static tN_Result CANTP_DoReceiveFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*transmit CF callback*/
 static void CANTP_DoTransmitCFCallBack(void);
-
-/*transmit conective frame*/
-static tN_Result CANTP_DoTransmitCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-/*waitting tx message*/
-static tN_Result CANTP_DoWaittingTxMsg(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-
-
-/*set transmit frame type. i_eCANType is only useful to SF*/
-static uint8 CANTP_SetFrameType(const tCANType i_eCANType,
-                                const tNetWorkFrameType i_eFrameType,
-                                uint8 *o_pFrameType);
-
-/*set transmitted SF data len*/
-static boolean CANTP_SetTxSFDataLen(const tCANType i_eCANType, const uint32 i_txSFDataLen, uint8 *o_pSFMsgBuf);
-
-/*set transmitted FF data len*/
-static boolean CANTP_SetTxFFDataLen(const uint32 i_txSFDataLen, uint8 *o_pFFMsgBuf);
-
-/*Is eanble TX CAN FD message?*/
 static boolean CANTP_IsEnableTxCANFDMsg(void);
-
-/*Get message start position and max message len*/
-static boolean CANTP_GetFillDataInfo(const tCANType i_CANType,
-                                     const tNetWorkFrameType i_eFrameType,
-                                     const uint32 i_fillMsgLen,
-                                     uint8 *o_pDataStartPos,
-                                     uint32 *o_pMaxDataLen);
-
-/*Fill transmit message information*/
-static boolean CANTP_FillTxMsgInfo(const tNetWorkFrameType i_eFrameType,
-                                   const uint32 i_srcMsgLen,
-                                   const uint8* i_pSrcMsgBuf,
-                                   const uint32 i_maxDstMsgBufLen,
-                                   uint8 *o_pDstMsgBuf,
-                                   uint32 *o_pDstMsgLen);
-
-/*received a can tp frame, copy these data in fifo.*/
-static uint8 CANTP_CopyAFrameDataInRxFifo(const tUdsId i_xRxCanID,
-                                                    const tLen i_xRxDataLen,
-                                                    const uint8 *i_pDataBuf
-                                                    );
-
-/*uds transmitted a application frame data, copy these data in TX fifo.*/
-static uint8 CANTP_CopyAFrameFromFifoToBuf(tUdsId *o_pxTxCanID,
-                                                       uint8 *o_pTxDataLen,
-                                                       uint8 *o_pDataBuf);
-
-/*CAN TP TX message callback*/
 static void CANTP_TxMsgSuccessfulCallBack(void);
-
-/*CANP TP set TX message status*/
-static void CANTP_SetTxMsgStatus(const tCanTPTxMsgStatus i_eTxMsgStatus);
-
-/*Register tx message successful callback*/
-static void CANTP_RegisterTxMsgCallBack(const tpfNetTxCallBack i_pfNetTxCallBack);
-
-/*Do register tx message callback*/
 static void CANTP_DoRegisterTxMsgCallBack(void);
-
+static void CANTP_SetTxMsgStatus(const tCanTPTxMsgStatus i_eTxMsgStatus);
+static void CANTP_RegisterTxMsgCallBack(const tpfNetTxCallBack i_pfNetTxCallBack);
+static boolean GetRxSFMsgValidPosition(const uint32 i_RxMsgLen, uint8* o_pDataStartPos);
+static boolean CANTP_SetTxFFDataLen(const uint32 i_txSFDataLen, uint8 *o_pFFMsgBuf);
+static tN_Result CANTP_DoCanTpIdle(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoReceiveSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoReceiveFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoReceiveCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoTransmitFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoTransmitSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoTransmitFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoReceiveFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoTransmitCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static tN_Result CANTP_DoWaittingTxMsg(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
+static uint8 CANTP_CopyAFrameDataInRxFifo(const uint32 i_xRxCanID, const uint16 i_xRxDataLen,const uint8 *i_pDataBuf );
+static uint8 CANTP_CopyAFrameFromFifoToBuf(uint32 *o_pxTxCanID, uint32 *o_pTxDataLen, uint8 *o_pDataBuf);
+static uint8 CANTP_SetFrameType(const tCANType i_eCANType, const tNetWorkFrameType i_eFrameType, uint8 *o_pFrameType);
+static boolean CANTP_SetTxSFDataLen(const tCANType i_eCANType, const uint32 i_txSFDataLen, uint8 *o_pSFMsgBuf);
+static boolean GetRXFFFrameMsgLength(const uint32 i_RxMsgLen, const uint8 *i_pMsgBuf, uint32 *o_pFrameLen);
+static boolean GetRXSFFrameMsgLength(const uint32 i_RxMsgLen, const uint8 *i_pMsgBuf, uint32 *o_pFrameLen);
+static boolean CANTP_GetFillDataInfo(const tCANType i_CANType,const tNetWorkFrameType i_eFrameType,
+                                     const uint32 i_fillMsgLen, uint8 *o_pDataStartPos,uint32 *o_pMaxDataLen);
+static boolean CANTP_FillTxMsgInfo(const tNetWorkFrameType i_eFrameType,const uint32 i_srcMsgLen, const uint8* i_pSrcMsgBuf,
+                                     const uint32 i_maxDstMsgBufLen, uint8 *o_pDstMsgBuf, uint32 *o_pDstMsgLen);
 /*********************************************************/
 
 const static tCanTpFunInfo gs_astCanTpFunInfo[] = {
@@ -446,7 +259,7 @@ void CANTP_Init(void)
     ApplyFifo(RX_TP_QUEUE_LEN, RX_TP_QUEUE_ID, &eStatus);
     if(ERRO_NONE != eStatus)
     {
-        TP_DebugPrintf("apply RX_TP_QUEUE_ID failed!\n");
+        print("apply RX_TP_QUEUE_ID failed!\n");
         while(1)
         {
 
@@ -456,7 +269,7 @@ void CANTP_Init(void)
     ApplyFifo(TX_TP_QUEUE_LEN, TX_TP_QUEUE_ID, &eStatus);
     if(ERRO_NONE != eStatus)
     {
-        TP_DebugPrintf("apply TX_TP_QUEUE_ID failed\n");
+        print("apply TX_TP_QUEUE_ID failed\n");
         while(1)
         {
 
@@ -466,7 +279,7 @@ void CANTP_Init(void)
     ApplyFifo(RX_BUS_FIFO_LEN, RX_BUS_FIFO, &eStatus);
     if(ERRO_NONE != eStatus)
     {
-        TP_DebugPrintf("apply RX_BUS_FIFO failed!\n");
+        print("apply RX_BUS_FIFO failed!\n");
         while(1)
         {
 
@@ -476,7 +289,7 @@ void CANTP_Init(void)
     ApplyFifo(TX_BUS_FIFO_LEN, TX_BUS_FIFO, &eStatus);
     if(ERRO_NONE != eStatus)
     {
-        TP_DebugPrintf("apply TX_BUS_FIFOfailed!\n");
+        print("apply TX_BUS_FIFOfailed!\n");
         while(1)
         {
 
@@ -572,12 +385,12 @@ void CANTP_MainFun(void)
 }
 
 /*received a can tp frame, copy these data in UDS RX fifo.*/
-static uint8 CANTP_CopyAFrameDataInRxFifo(const tUdsId i_xRxCanID,
-                                                    const tLen i_xRxDataLen,
+static uint8 CANTP_CopyAFrameDataInRxFifo(const uint32 i_xRxCanID,
+                                                    const uint16 i_xRxDataLen,
                                                     const uint8 *i_pDataBuf)
 {
     tErroCode eStatus;
-    tLen xCanWriteLen = 0u;
+    uint16 xCanWriteLen = 0u;
 
     tUDSAndTPExchangeMsgInfo exchangeMsgInfo;
 
@@ -617,12 +430,12 @@ static uint8 CANTP_CopyAFrameDataInRxFifo(const tUdsId i_xRxCanID,
 }
 
 /*uds transmitted a application frame data, copy these data in TX fifo.*/
-static uint8 CANTP_CopyAFrameFromFifoToBuf(tUdsId *o_pxTxCanID,
-                                                       uint8 *o_pTxDataLen,
+static uint8 CANTP_CopyAFrameFromFifoToBuf(uint32 *o_pxTxCanID,
+                                                       uint32 *o_pTxDataLen,
                                                        uint8 *o_pDataBuf)
 {
     tErroCode eStatus;
-    tLen xRealReadLen = 0u;
+    uint16 xRealReadLen = 0u;
     tUDSAndTPExchangeMsgInfo exchangeMsgInfo;
 
     ASSERT(NULL_PTR == o_pxTxCanID);
@@ -675,8 +488,8 @@ static tN_Result CANTP_DoCanTpIdle(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     ASSERT(NULL_PTR == m_peNextStatus);
 
     /*clear can tp data*/
-    fsl_memset((void *)&gs_stCanTPRxDataInfo,0u,sizeof(tCanTpInfo));
-    fsl_memset((void *)&gs_stCanTPTxDataInfo,0u,sizeof(tCanTpInfo));
+    memset((void *)&gs_stCanTPRxDataInfo,0u,sizeof(tCanTpInfo));
+    memset((void *)&gs_stCanTPTxDataInfo,0u,sizeof(tCanTpInfo));
 
     /*clear waitting time*/
     gs_CANTPTxMsgMaxWaitTime = 0u;
@@ -698,7 +511,7 @@ static tN_Result CANTP_DoCanTpIdle(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
         }
         else
         {
-            TP_DebugPrintf("\n %s received invalid message!\n", __func__);
+            print("\n %s received invalid message!\n", __func__);
         }
     }
     else
@@ -745,7 +558,7 @@ static tN_Result CANTP_DoReceiveSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     /*Get RX frame: SF length*/
     if(TRUE != GetRXSFFrameMsgLength(m_stMsgInfo->msgLen, m_stMsgInfo->aMsgBuf, &SFLen))
     {
-        TP_DebugPrintf("SF:GetRXSFFrameMsgLength failed!\n");
+        print("SF:GetRXSFFrameMsgLength failed!\n");
 
         return N_ERROR;
     }
@@ -753,7 +566,7 @@ static tN_Result CANTP_DoReceiveSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     /*Get Rx message valid position*/
     if(TRUE != GetRxSFMsgValidPosition(m_stMsgInfo->msgLen, &dataStartPos))
     {
-        TP_DebugPrintf("SF: GetRxSFMsgValidPosition failed!\n");
+        print("SF: GetRxSFMsgValidPosition failed!\n");
 
         return N_ERROR;
     }
@@ -763,7 +576,7 @@ static tN_Result CANTP_DoReceiveSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
                                        SFLen,
                                        &m_stMsgInfo->aMsgBuf[dataStartPos]))
     {
-        TP_DebugPrintf("copy data erro!\n");
+        print("copy data erro!\n");
 
         return N_ERROR;
     }
@@ -787,7 +600,7 @@ static tN_Result CANTP_DoReceiveFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
 
     if(TRUE != IsFF(m_stMsgInfo->aMsgBuf[0u]))
     {
-        TP_DebugPrintf("Received not FF\n");
+        print("Received not FF\n");
 
         return N_ERROR;
     }
@@ -795,7 +608,7 @@ static tN_Result CANTP_DoReceiveFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     /*get FF Data len*/
     if(TRUE != GetRXFFFrameMsgLength(m_stMsgInfo->msgLen, m_stMsgInfo->aMsgBuf, &FFDataLen))
     {
-        TP_DebugPrintf("FF:GetRXFrameMsgLength failed!\n");
+        print("FF:GetRXFrameMsgLength failed!\n");
 
         return N_ERROR;
     }
@@ -810,7 +623,7 @@ static tN_Result CANTP_DoReceiveFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     RXFrame_SetTxMsgWaitTime(g_stCANUdsNetLayerCfgInfo.xNBr);
 
     /*copy data in golbal buf*/
-    fsl_memcpy(gs_stCanTPRxDataInfo.stCanTpDataInfo.aDataBuf, (const void *)&m_stMsgInfo->aMsgBuf[2u], m_stMsgInfo->msgLen - 2u);
+    memcpy(gs_stCanTPRxDataInfo.stCanTpDataInfo.aDataBuf, (const void *)&m_stMsgInfo->aMsgBuf[2u], m_stMsgInfo->msgLen - 2u);
 
     AddRevDataLen(m_stMsgInfo->msgLen - 2u);
 
@@ -831,7 +644,7 @@ static tN_Result CANTP_DoReceiveCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     /*Is timeout rx wait timeout? If wait time out receive CF over.*/
     if(TRUE == IsWaitCFTimeout())
     {
-        TP_DebugPrintf("wait conective frame timeout!\n");
+        print("wait conective frame timeout!\n");
 
         *m_peNextStatus = IDLE;
 
@@ -847,7 +660,7 @@ static tN_Result CANTP_DoReceiveCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     /*check received msssage is SF or FF? If received SF or FF, start new receive progrocess.*/
     if((TRUE == IsSF(m_stMsgInfo->aMsgBuf[0u])) || (TRUE == IsFF(m_stMsgInfo->aMsgBuf[0u])))
     {
-        TP_DebugPrintf("In receive progrocess: received SF\n");
+        print("In receive progrocess: received SF\n");
 
         *m_peNextStatus = IDLE;
 
@@ -856,27 +669,22 @@ static tN_Result CANTP_DoReceiveCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
 
     if(gs_stCanTPRxDataInfo.stCanTpDataInfo.xCanTpId != m_stMsgInfo->xMsgId)
     {
-#ifdef EN_TP_DEBUG
-        TP_DebugPrintf("Msg ID invalid in CF! F RX ID = %X, RX ID = %X\n",
+        print("Msg ID invalid in CF! F RX ID = %X, RX ID = %X\n",
         gs_stCanTPRxDataInfo.stCanTpDataInfo.xCanTpId, m_stMsgInfo->xMsgId);
-#endif
 
         return N_ERROR;
     }
 
     if(TRUE != IsCF(m_stMsgInfo->aMsgBuf[0u]))
     {
-#ifdef EN_TP_DEBUG
-        TP_DebugPrintf("Msg type invalid in CF %X!\n", m_stMsgInfo->aMsgBuf[0u]);
-#endif
-
+        print("Msg type invalid in CF %X!\n", m_stMsgInfo->aMsgBuf[0u]);
         return N_ERROR;
     }
 
     /*Get rev SN. If SN invalid, return FALSE.*/
     if(TRUE != IsRevSNValid(m_stMsgInfo->aMsgBuf[0u]))
     {
-        TP_DebugPrintf("Msg SN invalid in CF!\n");
+        print("Msg SN invalid in CF!\n");
 
         return N_WRONG_SN;
     }
@@ -886,7 +694,7 @@ static tN_Result CANTP_DoReceiveCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     if(TRUE == IsReciveCFAll(m_stMsgInfo->msgLen - 1u))
     {
         /*copy all data in fifo and receive over. */
-        fsl_memcpy(&gs_stCanTPRxDataInfo.stCanTpDataInfo.aDataBuf[gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen],
+        memcpy(&gs_stCanTPRxDataInfo.stCanTpDataInfo.aDataBuf[gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen],
                   &m_stMsgInfo->aMsgBuf[1u],
                   gs_stCanTPRxDataInfo.stCanTpDataInfo.xFFDataLen - gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen);
 
@@ -917,7 +725,7 @@ static tN_Result CANTP_DoReceiveCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
         }
 
         /*Copy data in global fifo*/
-        fsl_memcpy(&gs_stCanTPRxDataInfo.stCanTpDataInfo.aDataBuf[gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen],
+        memcpy(&gs_stCanTPRxDataInfo.stCanTpDataInfo.aDataBuf[gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen],
                    &m_stMsgInfo->aMsgBuf[1u],
                   m_stMsgInfo->msgLen - 1u);
 
@@ -952,7 +760,7 @@ static tN_Result CANTP_DoTransmitFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
     /*Is wait FC timeout?*/
     if(TRUE != IsWaitFCTimeout())
     {
-        TP_DebugPrintf("\n waitting transmitt FC not timeout!\n");
+        print("\n waitting transmitt FC not timeout!\n");
 
         /*waitting timeout for transmit FC*/
         return N_OK;
@@ -983,7 +791,7 @@ static tN_Result CANTP_DoTransmitFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
     }
 
     /*set BS*/
-    SetBlockSize(&aucTransDataBuf[1u], g_stCANUdsNetLayerCfgInfo.xBlockSize);
+    Seuint16(&aucTransDataBuf[1u], g_stCANUdsNetLayerCfgInfo.xBlockSize);
 
     /*add block size*/
     AddBlockSize();
@@ -1073,7 +881,7 @@ static tN_Result CANTP_DoTransmitSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
     txLen = aDataBuf[0u] + 1u;
 
     /*copy data in tx buf*/
-    fsl_memcpy(&aDataBuf[1u],
+    memcpy(&aDataBuf[1u],
               gs_stCanTPTxDataInfo.stCanTpDataInfo.aDataBuf,
               gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen);
 #endif
@@ -1170,7 +978,7 @@ static tN_Result CANTP_DoTransmitFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
     SetTxFFDataLen(aDataBuf, gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen);
 
     /*copy data in tx buf*/
-    fsl_memcpy(&aDataBuf[2u],gs_stCanTPTxDataInfo.stCanTpDataInfo.aDataBuf, TX_FF_DATA_MIN_LEN - 2);
+    memcpy(&aDataBuf[2u],gs_stCanTPTxDataInfo.stCanTpDataInfo.aDataBuf, TX_FF_DATA_MIN_LEN - 2);
     txMsgLen = sizeof(aDataBuf);
 #else
 
@@ -1226,7 +1034,7 @@ static tN_Result CANTP_DoReceiveFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     /*If tx message wait FC timeout jump to IDLE.*/
     if(TRUE == IsTxWaitFrameTimeout())
     {
-        TP_DebugPrintf("Wait flow control timeout.\n");
+        print("Wait flow control timeout.\n");
 
         *m_peNextStatus = IDLE;
 
@@ -1265,7 +1073,7 @@ static tN_Result CANTP_DoReceiveFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     /*contiune to send */
     if(CONTINUE_TO_SEND == eFlowStatus)
     {
-        SetBlockSize(&gs_stCanTPTxDataInfo.ucBlockSize, m_stMsgInfo->aMsgBuf[1u]);
+        Seuint16(&gs_stCanTPTxDataInfo.ucBlockSize, m_stMsgInfo->aMsgBuf[1u]);
 
         SaveTxSTmin(m_stMsgInfo->aMsgBuf[2u]);
 
@@ -1375,7 +1183,7 @@ static tN_Result CANTP_DoTransmitCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
 
     if(txLen >= TX_CF_DATA_MAX_LEN)
     {
-        fsl_memcpy(&aTxDataBuf[1u],
+        memcpy(&aTxDataBuf[1u],
                   &gs_stCanTPTxDataInfo.stCanTpDataInfo.aDataBuf[gs_stCanTPTxDataInfo.stCanTpDataInfo.xPduDataLen],
                   TX_CF_DATA_MAX_LEN);
 
@@ -1402,7 +1210,7 @@ static tN_Result CANTP_DoTransmitCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
 
     else
     {
-        fsl_memcpy(&aTxDataBuf[1u],
+        memcpy(&aTxDataBuf[1u],
                 &gs_stCanTPTxDataInfo.stCanTpDataInfo.aDataBuf[gs_stCanTPTxDataInfo.stCanTpDataInfo.xPduDataLen],
                    txLen);
 
@@ -1531,7 +1339,7 @@ static boolean CANTP_SetTxFFDataLen(const uint32 i_txSFDataLen, uint8 *o_pFFMsgB
 
     if(i_txSFDataLen > 0x0FFFu)
     {
-        TP_DebugPrintf("CAN TP tx message over max!\n");
+        print("CAN TP tx message over max!\n");
 
         return FALSE;
     }
@@ -1744,7 +1552,7 @@ static boolean CANTP_FillTxMsgInfo(const tNetWorkFrameType i_eFrameType,
 
     if(TRUE == res)
     {
-        fsl_memcpy(&o_pDstMsgBuf[dataStartPos], i_pSrcMsgBuf, txMsgLen);
+        memcpy(&o_pDstMsgBuf[dataStartPos], i_pSrcMsgBuf, txMsgLen);
 
         *o_pDstMsgLen = txMsgLen + dataStartPos;
     }
@@ -1792,7 +1600,7 @@ static void CANTP_DoRegisterTxMsgCallBack(void)
     }
     else if(CANTP_TX_MSG_FAIL == CANTPTxMsgStatus)
     {
-        TP_DebugPrintf("\n TX msg failed callback=%X, status=%d\n", gs_pfCANTPTxMsgCallBack, gs_eCANTPTxMsStatus);
+        print("\n TX msg failed callback=%X, status=%d\n", gs_pfCANTPTxMsgCallBack, gs_eCANTPTxMsStatus);
         gs_eCANTPTxMsStatus = CANTP_TX_MSG_IDLE;
         /*if tx message failled, clear tx message callback*/
         gs_pfCANTPTxMsgCallBack = NULL_PTR;

@@ -11,14 +11,8 @@
 
 /*default open check input parameters*/
 #define SAFE_LEVEL_O3
-
-#ifndef TRUE
-#define TRUE (1u)
-#endif
-
-#ifndef FALSE
-#define FALSE (!TRUE)
-#endif
+#define FIFO_NUM                            (4u)           /*Fifo num*/
+#define TOTAL_FIFO_BYTES                    (800u)         /*config total bytes*/
 
 /*define erro code */
 typedef enum
@@ -36,12 +30,23 @@ typedef enum
 	ERRO_READ_ERRO
 }tErroCode;
 
-typedef unsigned short tId;
-typedef unsigned short tLen;
+typedef enum
+{
+    FIFO_EMPTY,           /*fifo empty*/
+    FIFO_USING,           /*fifo using*/
+    FIFO_FULL            /*fifo full */
+}tFifoStatus;
 
-#define FIFO_NUM (4u)           /*Fifo num*/
-#define TOTAL_FIFO_BYTES (800u) /*config total bytes*/
-
+typedef struct
+{
+    uint16 xOwnerId;                  /*owner fifo id*/
+    uint16 xFifoLen;                 /*fifo len*/
+    uint16 xReadAddr;                /*read fifo addr*/
+    uint16 xWriteAddr;               /*write fifo addr*/
+    tFifoStatus eFifoStatus;       /*fifo status*/
+    unsigned char *pDataFifoAddr; /*data addr*/
+    void *pvNextFifoList;          /*next fifo list*/
+}tFifoInfo;
 
 /**********************************************************
 **	Function Name	:	ApplyFifo
@@ -55,7 +60,7 @@ typedef unsigned short tLen;
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-extern void ApplyFifo(tLen i_xApplyFifoLen, tLen i_xFifoId, tErroCode *o_peApplyStatus);
+ void ApplyFifo(uint16 i_xApplyFifoLen, uint16 i_xFifoId, tErroCode *o_peApplyStatus);
 
 /**********************************************************
 **	Function Name	:	WriteDataInFifo
@@ -70,9 +75,9 @@ extern void ApplyFifo(tLen i_xApplyFifoLen, tLen i_xFifoId, tErroCode *o_peApply
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-extern void WriteDataInFifo(tId i_xFifoId, 
+ void WriteDataInFifo(uint16 i_xFifoId,
 					   		  unsigned char *i_pucWriteDataBuf, 
-					   	      tLen i_xWriteDatalen, 
+					   		uint16 i_xWriteDatalen,
 					          tErroCode *o_peWriteStatus);
 
 /**********************************************************
@@ -89,9 +94,9 @@ extern void WriteDataInFifo(tId i_xFifoId,
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-extern void ReadDataFromFifo(tId i_xFifoId, tLen i_xNeedReadDataLen, 
+ void ReadDataFromFifo(uint16 i_xFifoId, uint16 i_xNeedReadDataLen,
 						   		  unsigned char *o_pucReadDataBuf,
-						  		  tLen *o_pxReadLen,
+						  		  uint16 *o_pxReadLen,
 						   		  tErroCode *o_peReadStatus);
 
 /**********************************************************
@@ -106,7 +111,7 @@ extern void ReadDataFromFifo(tId i_xFifoId, tLen i_xNeedReadDataLen,
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-extern void GetCanReadLen(tId i_xFifoId, tLen *o_pxCanReadLen, tErroCode *o_peGetStatus);
+ void GetCanReadLen(uint16 i_xFifoId, uint16 *o_pxCanReadLen, tErroCode *o_peGetStatus);
 
 /**********************************************************
 **	Function Name	:	GetCanWriteLen
@@ -120,7 +125,7 @@ extern void GetCanReadLen(tId i_xFifoId, tLen *o_pxCanReadLen, tErroCode *o_peGe
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-extern void GetCanWriteLen(tId i_xFifoId, tLen *o_pxCanWriteLen, tErroCode *o_peGetStatus);
+ void GetCanWriteLen(uint16 i_xFifoId, uint16 *o_pxCanWriteLen, tErroCode *o_peGetStatus);
 
 /**********************************************************
 **	Function Name	:	ClearFIFO
@@ -133,7 +138,7 @@ extern void GetCanWriteLen(tId i_xFifoId, tLen *o_pxCanWriteLen, tErroCode *o_pe
 **	Author			:	Tomlin
 **	Created Date		:	2019-6-18
 **********************************************************/
-extern void ClearFIFO(tId i_xFifoId, tErroCode *o_peGetStatus);
+ void ClearFIFO(uint16 i_xFifoId, tErroCode *o_peGetStatus);
 
 
 #endif /*#ifndef __MULTI_CYC_FIFO_H__*/

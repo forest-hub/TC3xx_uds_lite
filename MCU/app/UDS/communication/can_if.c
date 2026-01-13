@@ -144,7 +144,7 @@ boolean TP_ReadAFrameDataFromTP(uint32 *o_pRxMsgID,
                                       uint8 *o_pDataBuf)
 {
     tErroCode eStatus;
-    tLen xReadDataLen = 0u;
+    uint16 xReadDataLen = 0u;
 
     tUDSAndTPExchangeMsgInfo exchangeMsgInfo;
 
@@ -167,7 +167,7 @@ boolean TP_ReadAFrameDataFromTP(uint32 *o_pRxMsgID,
                     &eStatus);
     if(ERRO_NONE != eStatus || sizeof(exchangeMsgInfo) != xReadDataLen)
     {
-        TP_DebugPrintf("Read data len erro!\n");
+        print("Read data len erro!\n");
         return FALSE;
     }
 
@@ -179,7 +179,7 @@ boolean TP_ReadAFrameDataFromTP(uint32 *o_pRxMsgID,
                     &eStatus);
     if(ERRO_NONE != eStatus || (exchangeMsgInfo.dataLen != xReadDataLen))
     {
-        TP_DebugPrintf("Read data erro!\n");
+        print("Read data erro!\r\n");
         return FALSE;
     }
 
@@ -196,8 +196,8 @@ boolean TP_WriteAFrameDataInTP(const uint32 i_TxMsgID,
                                      const uint8 *i_pDataBuf)
 {
     tErroCode eStatus;
-    tLen xCanWriteLen = 0u;
-    tLen xWritDataLen = (tLen)i_xTxDataLen;
+    uint16 xCanWriteLen = 0u;
+    uint16 xWritDataLen = (uint16)i_xTxDataLen;
 
     tUDSAndTPExchangeMsgInfo exchangeMsgInfo;
     uint32 totalWriteDataLen = i_xTxDataLen + sizeof(tUDSAndTPExchangeMsgInfo);

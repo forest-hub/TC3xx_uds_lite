@@ -56,6 +56,15 @@ extern devcanfdRXringbuff RxBuff2;
 extern SemaphoreHandle_t can0_xSemaphore ;
 extern SemaphoreHandle_t can1_xSemaphore ;
 extern SemaphoreHandle_t can2_xSemaphore ;
+
+devcanfdRXringbuff RxBuff0;
+devcanfdRXringbuff RxBuff1;
+devcanfdRXringbuff RxBuff2;
+devcanfdRXringbuff RxBuff3;
+devcanfdRXringbuff RxBuff4;
+devcanfdRXringbuff RxBuff5;
+devcanfdRXringbuff RxBuff6;
+devcanfdRXringbuff RxBuff7;
 /* Task which runs the LED1 app */
 void task_uart(void *arg)
 {
@@ -91,14 +100,30 @@ void task_uds(void *arg)
 {
     while (1)
     {
+
+
+        TP_MainFun();
+
+        UDS_MainFun();
+
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
 void task_can0_Rx(void *arg)
 {
+    IfxCan_Message message;
+    uint8 data[64]={0};
     while(1)
     {
+
+        if (xSemaphoreTake(can0_xSemaphore, portMAX_DELAY) == pdPASS)
+        {
+            IfxCan_Can_readMessage(&g_mcmcanNode[0], &message, (uint32 *)data);
+
+
+
+        }
         vTaskDelay(pdMS_TO_TICKS(1));
 
     }
@@ -107,9 +132,14 @@ void task_can0_Rx(void *arg)
 
 void task_can1_Rx(void *arg)
 {
+    IfxCan_Message message;
+    uint8 data[64]={0};
     while(1)
     {
-
+       if (xSemaphoreTake(can1_xSemaphore, 10) == pdPASS)
+        {
+           IfxCan_Can_readMessage(&g_mcmcanNode[1], &message, (uint32 *)data);
+        }
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
@@ -117,9 +147,15 @@ void task_can1_Rx(void *arg)
 
 void task_can2_Rx(void *arg)
 {
+    IfxCan_Message message;
+    uint8 data[64]={0};
     while(1)
     {
+        if (xSemaphoreTake(can2_xSemaphore, 10) == pdPASS)
+        {
+            IfxCan_Can_readMessage(&g_mcmcanNode[2], &message, (uint32 *)data);
 
+        }
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 }

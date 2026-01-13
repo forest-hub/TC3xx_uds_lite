@@ -2,23 +2,19 @@
 #define __CAN_TP_CFG_H__
 
 #include "user_config.h"
-#include "can_tp.h"
-
+#include <uds_can_fifo_list.h>
+#include "can_if.h"
+//#include "can_if.h"
 /*******************************************************
 **  Description : ISO 15765-2 config file
 *******************************************************/
-typedef uint32 tUdsId;
-typedef uint32 tUdsLen;
-typedef uint16 tNetTime;
-typedef uint16 tBlockSize;
 typedef void (*tpfNetTxCallBack)(void);
-typedef uint8 (*tNetTxMsg)(const tUdsId, const uint16, const uint8 *, const tpfNetTxCallBack, const uint32);
-typedef uint8 (*tNetRx)(tUdsId *, uint8 *, uint8 *);
-typedef uint16 tCanTpDataLen;
+typedef uint8 (*tNetTxMsg)(const uint32, const uint16, const uint8 *, const tpfNetTxCallBack, const uint32);
+typedef uint8 (*tNetRx)(uint32 *, uint8 *, uint8 *);
+
 
 /*abort tx message*/
 typedef void (*tpfAbortTxMsg)(void);
-
 
 #define MAX_CF_DATA_LEN (150u) /*max first frame data len */
 
@@ -57,17 +53,17 @@ typedef void (*tpfAbortTxMsg)(void);
 typedef struct
 {
     uint8 ucCalledPeriod;/*called CAN tp main function period*/
-    tUdsId xRxFunId;             /*rx function ID*/
-    tUdsId xRxPhyId;             /*Rx phy ID*/
-    tUdsId xTxId;                /*Tx ID*/
-    tBlockSize xBlockSize;       /*BS*/
-    tNetTime xSTmin;             /*STmin*/
-    tNetTime xNAs;               /*N_As*/
-    tNetTime xNAr;               /*N_Ar*/
-    tNetTime xNBs;               /*N_Bs*/
-    tNetTime xNBr;               /*N_Br*/
-    tNetTime xNCs;               /*N_Cs*/
-    tNetTime xNCr;               /*N_Cr*/
+    uint32 xRxFunId;             /*rx function ID*/
+    uint32 xRxPhyId;             /*Rx phy ID*/
+    uint32 xTxId;                /*Tx ID*/
+    uint16 xBlockSize;       /*BS*/
+    uint16 xSTmin;             /*STmin*/
+    uint16 xNAs;               /*N_As*/
+    uint16 xNAr;               /*N_Ar*/
+    uint16 xNBs;               /*N_Bs*/
+    uint16 xNBr;               /*N_Br*/
+    uint16 xNCs;               /*N_Cs*/
+    uint16 xNCr;               /*N_Cr*/
     uint32 txBlockingMaxTimeMs;  /*TX message blocking max time (MS)*/
     tNetTxMsg pfNetTxMsg;/*net tx message with non blocking*/
     tNetRx pfNetRx;              /*net rx*/
@@ -80,35 +76,35 @@ extern const tUdsCANNetLayerCfg g_stCANUdsNetLayerCfgInfo;
 
 
 /*get config CAN TP tx ID*/
-extern tUdsId CANTP_GetConfigTxMsgID(void);
+uint32 CANTP_GetConfigTxMsgID(void);
 
 
 /*get config CAN TP recevie function message ID*/
-extern tUdsId CANTP_GetConfigRxMsgFUNID(void);
+uint32 CANTP_GetConfigRxMsgFUNID(void);
 
 /*get config CAN TP recevie physical message ID*/
-extern tUdsId CANTP_GetConfigRxMsgPHYID(void);
+uint32 CANTP_GetConfigRxMsgPHYID(void);
 
 /*Get CAN TP config Tx  handle*/
-extern tNetTxMsg CANTP_GetConfigTxHandle(void);
+tNetTxMsg CANTP_GetConfigTxHandle(void);
 
 /*Get CAN TP config Rx  handle*/
-extern tNetRx CANTP_GetConfigRxHandle(void);
+ tNetRx CANTP_GetConfigRxHandle(void);
 
 /*Is received message valid?*/
-extern boolean CANTP_IsReceivedMsgIDValid(const uint32 i_receiveMsgID);
+ boolean CANTP_IsReceivedMsgIDValid(const uint32 i_receiveMsgID);
 
 /*write data in CAN TP*/
-extern boolean CANTP_DriverWriteDataInCANTP(const uint32 i_RxID, const uint32 i_dataLen, const uint8 *i_pDataBuf);
+ boolean CANTP_DriverWriteDataInCANTP(const uint32 i_RxID, const uint32 i_dataLen, const uint8 *i_pDataBuf);
 
 /*register abort tx message to BUS*/
-extern void CANTP_RegisterAbortTxMsg(const tpfAbortTxMsg i_pfAbortTxMsg);
+ void CANTP_RegisterAbortTxMsg(const tpfAbortTxMsg i_pfAbortTxMsg);
 
 /*do tx message successful callback*/
-extern void CANTP_DoTxMsgSuccessfulCallBack(void);
+ void CANTP_DoTxMsgSuccessfulCallBack(void);
 
 /*Driver read data from LINTP*/
-extern boolean CANTP_DriverReadDataFromCANTP(const uint32 i_readDataLen, uint8 *o_pReadDataBuf, tTPTxMsgHeader *o_pstTxMsgHeader);
+ boolean CANTP_DriverReadDataFromCANTP(const uint32 i_readDataLen, uint8 *o_pReadDataBuf, tTPTxMsgHeader *o_pstTxMsgHeader);
 
 
 #endif /*#ifndef __CAN_TP_CFG_H__*/

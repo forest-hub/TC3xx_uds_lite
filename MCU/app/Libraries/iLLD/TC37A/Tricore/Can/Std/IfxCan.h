@@ -274,7 +274,23 @@ typedef enum
     IfxCan_InterruptLine_12,    /**< \brief Interrupt Line 12  */
     IfxCan_InterruptLine_13,    /**< \brief Interrupt Line 13  */
     IfxCan_InterruptLine_14,    /**< \brief Interrupt Line 14  */
-    IfxCan_InterruptLine_15     /**< \brief Interrupt Line 15  */
+    IfxCan_InterruptLine_15,     /**< \brief Interrupt Line 15  */
+    IfxCan_InterruptLine_16,     /**< \brief Interrupt Line 16  */
+    IfxCan_InterruptLine_17,     /**< \brief Interrupt Line 17  */
+    IfxCan_InterruptLine_18,     /**< \brief Interrupt Line 18  */
+    IfxCan_InterruptLine_19,     /**< \brief Interrupt Line 19  */
+    IfxCan_InterruptLine_20,     /**< \brief Interrupt Line 20  */
+    IfxCan_InterruptLine_21,     /**< \brief Interrupt Line 21  */
+    IfxCan_InterruptLine_22,     /**< \brief Interrupt Line 22  */
+    IfxCan_InterruptLine_23,     /**< \brief Interrupt Line 23  */
+    IfxCan_InterruptLine_24,     /**< \brief Interrupt Line 24  */
+    IfxCan_InterruptLine_25,     /**< \brief Interrupt Line 25  */
+    IfxCan_InterruptLine_26,    /**< \brief Interrupt Line 26  */
+    IfxCan_InterruptLine_27,    /**< \brief Interrupt Line 27  */
+    IfxCan_InterruptLine_28,    /**< \brief Interrupt Line 28  */
+    IfxCan_InterruptLine_29,    /**< \brief Interrupt Line 29  */
+    IfxCan_InterruptLine_30,    /**< \brief Interrupt Line 30  */
+    IfxCan_InterruptLine_31     /**< \brief Interrupt Line 31  */
 } IfxCan_InterruptLine;
 
 /** \brief Type of last error to occur on the CAN node

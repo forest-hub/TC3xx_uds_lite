@@ -687,7 +687,7 @@ typedef volatile struct _Ifx_SRC_GETH
 /** \brief CAN object */
 typedef volatile struct _Ifx_SRC_CAN_CAN
 {
-       Ifx_SRC_SRCR                        INT[16];                /**< \brief 0, CAN${x} Service Request ${y}*/
+       Ifx_SRC_SRCR                        INT[32];                /**< \brief 0, CAN${x} Service Request ${y}*/
 } Ifx_SRC_CAN_CAN;
 /** \}  */
 /******************************************************************************/

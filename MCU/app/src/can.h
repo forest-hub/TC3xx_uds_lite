@@ -122,10 +122,10 @@ typedef struct
     uint32 ramBaseAddr;// MCMCAN起始地址
     uint16 ramBaseAddrOffset;//message 偏移地址
     IfxCan_NodeId nodeId;// 节点号
-   //Ifx_Priority priorityTX;//发送的优先级
+    Ifx_Priority priorityTX;//发送的优先级
     Ifx_Priority priorityRX;//接收的优先级
     Ifx_Priority priorityERR;//接收的优先级
-  //IfxCan_InterruptLine interruptLineTX;//发送的中断号
+    IfxCan_InterruptLine interruptLineTX;//发送的中断号
     IfxCan_InterruptLine interruptLineRX;//接收的中断号
     IfxCan_InterruptLine interruptLineERR;//接收的中断号
 }NodeCanCfg_t;

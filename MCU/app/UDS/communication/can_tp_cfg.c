@@ -7,13 +7,13 @@ static tpfAbortTxMsg gs_pfCANTPAbortTxMsg = NULL_PTR;
 static tpfNetTxCallBack gs_pfTxMsgSuccessfulCallBack = NULL_PTR;
 
 
-static uint8 CANTP_TxMsg(const tUdsId i_xTxId,
+static uint8 CANTP_TxMsg(const uint32 i_xTxId,
 							  const uint16 i_dataLen, 
 							  const uint8* i_pDataBuf, 
 							  const tpfNetTxCallBack i_pfNetTxCallBack,
 							  const uint32 i_txBlockingMaxtime);
 
-static uint8 CANTP_RxMsg(tUdsId * o_pxRxId,
+static uint8 CANTP_RxMsg(uint32 * o_pxRxId,
 							   uint8 * o_pRxDataLen,
 							   uint8 *o_pRxBuf);
 
@@ -50,13 +50,13 @@ const tUdsCANNetLayerCfg g_stCANUdsNetLayerCfgInfo =
 };
 
 /*can tp tx message: there not use CAN driver TxFIFO, directly invoked CAN send function*/
-static uint8 CANTP_TxMsg(const tUdsId i_xTxId,
+static uint8 CANTP_TxMsg(const uint32 i_xTxId,
 							  const uint16 i_dataLen, 
 							  const uint8* i_pDataBuf, 
 							  const tpfNetTxCallBack i_pfNetTxCallBack,
 							  const uint32 i_txBlockingMaxtime)
 {
-	tLen xCanWriteDataLen = 0u;
+	uint16 xCanWriteDataLen = 0u;
 	tErroCode eStatus;
 	uint8 aMsgBuf[DATA_LEN] = {0};
 	tTPTxMsgHeader txMsgInfo;
@@ -108,12 +108,12 @@ static uint8 CANTP_TxMsg(const tUdsId i_xTxId,
 }
 
 /*can tp rx message: read rx msg from CAN driver RxFIFO*/
-static uint8 CANTP_RxMsg(tUdsId * o_pxRxId,
+static uint8 CANTP_RxMsg(uint32 * o_pxRxId,
 					  	 uint8 * o_pRxDataLen,
 						 uint8 *o_pRxBuf)
 {
-	tLen xCanRxDataLen = 0u;
-	tLen xReadDataLen = 0u;
+	uint16 xCanRxDataLen = 0u;
+	uint16 xReadDataLen = 0u;
 	tErroCode eStatus;
 	tRxMsgInfo stRxCanMsg = {0u};
 	uint8 ucIndex = 0u;
@@ -146,7 +146,7 @@ static uint8 CANTP_RxMsg(tUdsId * o_pxRxId,
 			}
 			
 			*o_pxRxId = stRxCanMsg.rxDataId;
-			*o_pRxDataLen = stRxCanMsg.rxDataLen;
+			*o_pRxDataLen =(uint8) stRxCanMsg.rxDataLen;
 
 			for(ucIndex = 0u; ucIndex < stRxCanMsg.rxDataLen; ucIndex++)
 			{
@@ -169,13 +169,13 @@ static uint8 CANTP_RxMsg(tUdsId * o_pxRxId,
 }
 
 /*get config CAN TP tx ID*/
-tUdsId CANTP_GetConfigTxMsgID(void)
+uint32 CANTP_GetConfigTxMsgID(void)
 {
 	return g_stCANUdsNetLayerCfgInfo.xTxId;
 }
 
 /*get config CAN TP recevie function message ID*/
-tUdsId CANTP_GetConfigRxMsgFUNID(void)
+uint32 CANTP_GetConfigRxMsgFUNID(void)
 {
 	return g_stCANUdsNetLayerCfgInfo.xRxFunId;
 }
@@ -196,7 +196,7 @@ boolean CANTP_IsReceivedMsgIDValid(const uint32 i_receiveMsgID)
 
 
 /*get config CAN TP recevie physical message ID*/
-tUdsId CANTP_GetConfigRxMsgPHYID(void)
+uint32 CANTP_GetConfigRxMsgPHYID(void)
 {
 	return g_stCANUdsNetLayerCfgInfo.xRxPhyId;
 
@@ -244,7 +244,7 @@ void CANTP_RegisterAbortTxMsg(const tpfAbortTxMsg i_pfAbortTxMsg)
 /*write data in CAN TP*/
 boolean CANTP_DriverWriteDataInCANTP(const uint32 i_RxID, const uint32 i_dataLen, const uint8 *i_pDataBuf)
 {
-	tLen xCanWriteDataLen = 0u;
+	uint16 xCanWriteDataLen = 0u;
 	tErroCode eStatus;
 	tRxMsgInfo stRxCanMsg;
 	const uint32 headerLen = sizeof(stRxCanMsg.rxDataId) + sizeof(stRxCanMsg.rxDataLen);
@@ -277,13 +277,13 @@ boolean CANTP_DriverWriteDataInCANTP(const uint32 i_RxID, const uint32 i_dataLen
 boolean CANTP_DriverReadDataFromCANTP(const uint32 i_readDataLen, uint8 *o_pReadDataBuf, tTPTxMsgHeader *o_pstTxMsgHeader)
 {
 	boolean result = FALSE;
-	tLen xCanRxDataLen = 0u;
+	uint16 xCanRxDataLen = 0u;
 	tErroCode eStatus;
 	tTPTxMsgHeader txMsgInfo;
 	const uint32 msgInfoLen = sizeof(tTPTxMsgHeader);
 
 	ASSERT(NULL_PTR == o_pReadDataBuf);
-	ASSERT(NULL_PTR == o_pstTxMsgHeader);	
+	ASSERT(NULL_PTR == o_pstTxMsgHeader);
 	ASSERT(0u == i_readDataLen);
 	
 	GetCanReadLen(TX_BUS_FIFO, &xCanRxDataLen, &eStatus);
@@ -304,7 +304,7 @@ boolean CANTP_DriverReadDataFromCANTP(const uint32 i_readDataLen, uint8 *o_pRead
 		{
 			
 			ReadDataFromFifo(TX_BUS_FIFO, 
-							 i_readDataLen,
+							(uint16) i_readDataLen,
 							o_pReadDataBuf,
 							&xCanRxDataLen,
 							&eStatus);
@@ -363,7 +363,7 @@ static boolean CANTP_FillPaddingData(const uint32 i_maxMsgLen,
 	uint8 maxIndex = 0u;
 #endif
 
-	uint8 index = 0u;
+	//uint8 index = 0u;
 	uint32 txMsgLen = 0u;
 
 	if((i_maxMsgLen < i_msgLen) || (NULL_PTR == m_pMsgBuf) || (NULL_PTR == o_pTxMsgLen))
