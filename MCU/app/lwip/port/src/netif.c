@@ -110,8 +110,8 @@
 #define ETH_MDIO_PIN                IfxGeth_MDIO_P21_3_INOUT
 #define ETH_TXD0_PIN                IfxGeth_TXD0_P11_3_OUT
 #define ETH_TXD1_PIN                IfxGeth_TXD1_P11_2_OUT
-#define ISR_PRIORITY_GETH_TX        15                        /* Define the Ethernet transmit interrupt priority  */
-#define ISR_PRIORITY_GETH_RX        14                        /* Define the Ethernet receive interrupt priority   */
+#define ISR_PRIORITY_GETH_TX        70                        /* Define the Ethernet transmit interrupt priority  */
+#define ISR_PRIORITY_GETH_RX        74                        /* Define the Ethernet receive interrupt priority   */
 #define netifINTERFACE_TASK_STACK_SIZE      ( 350 )
 #define netifINTERFACE_TASK_PRIORITY        ( configMAX_PRIORITIES - 1 )
 #define netifGUARD_BLOCK_TIME               ( 250 )

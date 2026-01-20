@@ -46,13 +46,53 @@
 #include "IfxCpu.h"
 #include "IfxScuRcu.h"
 #include "IfxScuWdt.h"
+#include "Ifx_Lwip.h"
 #include "App_Config.h"
 #include <gpio.h>
 #include "uart.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "pwm.h"
+#include "uds_app.h"
+#include "can_if.h"
+#include "can.h"
+#include "uart.h"
 uint8 g_currentCanFdUseCase = 0;
+
+stParam_t   tboxParam;
+
+extern const uint32  sBaudCBT[BPS_NUM] ;
+extern const uint32  sBaudFDCBT[BPS_FD_NUM] ;
+extern const uint16  samplingpointArr[6] ;
+extern const uint16  FDsamplingpointArr[5] ;
+
 IFX_ALIGN(4) IfxCpu_syncEvent g_cpuSyncEvent = 0;
+
+
+void flash_ParamDeal(void)
+{
+    uint8 i=0;
+    uint8 can_InitIndex[8] = {0,1,2,3,4,5,6,7};
+
+       for(i=0;i<8;i++)
+       {
+        tboxParam.canInitConfig[i].baudrate=0x5;
+        tboxParam.canInitConfig[i].FDbaudrate=0x2;
+        tboxParam.canInitConfig[i].samplingpoint=0x3;
+        tboxParam.canInitConfig[i].FDsamplingpoint=0x3;
+        tboxParam.canInitConfig[i].listenMode=2;
+        initMcmcan(can_InitIndex[i],tboxParam.canInitConfig);
+       // initMcmcan(5,tboxParam.canInitConfig);
+        print("node %d,brp %d,FDbrp %d,lm %d,seg %d,FDseg %d\r\n",can_InitIndex[i],
+                sBaudCBT[tboxParam.canInitConfig[i].baudrate],
+                sBaudFDCBT[tboxParam.canInitConfig[i].FDbaudrate],
+                tboxParam.canInitConfig[i].listenMode,
+                samplingpointArr[tboxParam.canInitConfig[i].samplingpoint],
+                FDsamplingpointArr[tboxParam.canInitConfig[i].FDsamplingpoint]);
+       }
+
+}
+
 /**
   * @brief      系统复位
   *
@@ -86,8 +126,12 @@ void core0_main(void)
     IfxScuWdt_disableSafetyWatchdog(IfxScuWdt_getSafetyWatchdogPassword());
     initAllUart();
     initGPIO();
-    IfxGeth_enableModule(&MODULE_GETH);
-    Ifx_Lwip_init();
+    flash_ParamDeal();
+    initGtmTomPwm();
+    UDS_Init();
+    TP_Init();
+    //IfxGeth_enableModule(&MODULE_GETH);
+    //Ifx_Lwip_init();
     /* Wait for CPU sync event */
     IfxCpu_emitEvent(&g_cpuSyncEvent);
     IfxCpu_waitEvent(&g_cpuSyncEvent, 1);
@@ -95,7 +139,8 @@ void core0_main(void)
     /* Application code: initialization of MULTICAN, LED, transmission and verification of the CAN messages */
     xTaskCreate(task_led,  "APP LED", configMINIMAL_STACK_SIZE, NULL, 6, NULL);
     xTaskCreate(task_uart, "task uart", configMINIMAL_STACK_SIZE, NULL, 8, NULL);
-    tcp_client_init();
+    can_rx_create();
+   // tcp_client_init();
     vTaskStartScheduler();
     /* If at this point the LED is not turned on, check "g_status" and "g_currentCanFdUseCase" variables */
     while (1)

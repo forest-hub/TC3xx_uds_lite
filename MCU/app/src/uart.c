@@ -37,7 +37,7 @@
 /* Communication parameters */
 #define ISR_PRIORITY_UART0_TX         45                                    /* Priority for interrupt ISR Transmit  */
 #define ISR_PRIORITY_UART0_RX         46                                    /* Priority for interrupt ISR Receive   */
-#define ISR_PRIORITY_UART0_ER         75                                    /* Priority for interrupt ISR Errors    */
+#define ISR_PRIORITY_UART0_ER         47                                    /* Priority for interrupt ISR Errors    */
 #define UART0_TX_BUFFER_SIZE          256                                   /* Define the TX buffer size in byte    */
 #define UART0_RX_BUFFER_SIZE          256                                   /* Define the RX buffer size in byte    */
 #define DEMO_BOART_USED         1

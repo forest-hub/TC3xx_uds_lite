@@ -37,9 +37,9 @@ IfxPort_Pin_Config          can_stb2;
 IfxPort_Pin_Config          can_en;                        /* Global STB configuration and control structure      */
 IfxPort_Pin_Config          can_power;                        /* Global STB configuration and control structure      */
 IfxPort_Pin_Config          net_power_en;                  /* switch RTL8367 power en      */
-IfxPort_Pin_Config          test_Pin1;                     /* MCU ms synchronous tigger      */
+//IfxPort_Pin_Config          test_Pin1;                     /* MCU ms synchronous tigger      */
 IfxPort_Pin_Config          test_Pin2;                     /* MCU ms synchronous tigger      */
-//IfxPort_Pin_Config          spi_cs;                      /* Global  SPI CS configuration and control structure      */
+//IfxPort_Pin_Config        spi_cs;                      /* Global  SPI CS configuration and control structure      */
 
 IfxPort_Pin                 alert;                         /* Global ip_select_key2 configuration and control structure      */
 IfxPort_Pin                 ctr_power;                     /* Global ip_select_key2 configuration and control structure      */
@@ -76,10 +76,10 @@ void initGPIO(void)
     net_power_en.mode      = IfxPort_OutputIdx_general;
     net_power_en.padDriver = IfxPort_PadDriver_cmosAutomotiveSpeed1;
 
-    test_Pin1.port      = &MODULE_P02;
-    test_Pin1.pinIndex  = 3;
-    test_Pin1.mode      = IfxPort_OutputIdx_general;
-    test_Pin1.padDriver = IfxPort_PadDriver_ttl3v3Speed1;
+   // test_Pin1.port      = &MODULE_P02;
+   // test_Pin1.pinIndex  = 3;
+  //  test_Pin1.mode      = IfxPort_OutputIdx_general;
+  //  test_Pin1.padDriver = IfxPort_PadDriver_ttl3v3Speed1;
     test_Pin2.port      = &MODULE_P02;
     test_Pin2.pinIndex  = 4;
     test_Pin2.mode      = IfxPort_OutputIdx_general;
@@ -102,7 +102,7 @@ void initGPIO(void)
     IfxPort_setPinHigh(can_stb1.port, can_stb1.pinIndex); //STB1
     IfxPort_setPinHigh(can_stb2.port, can_stb2.pinIndex); //STB2
     IfxPort_setPinHigh(can_en.port, can_en.pinIndex);  //CAN_EN
-    IfxPort_setPinLow(test_Pin1.port, test_Pin1.pinIndex);
+   // IfxPort_setPinLow(test_Pin1.port, test_Pin1.pinIndex);
     IfxPort_setPinLow(test_Pin2.port, test_Pin2.pinIndex);
     IfxPort_setPinLow(net_power_en.port, net_power_en.pinIndex);
 
@@ -111,7 +111,7 @@ void initGPIO(void)
     IfxPort_setPinModeOutput(can_stb2.port, can_stb2.pinIndex, IfxPort_OutputMode_pushPull, can_stb2.mode);
     IfxPort_setPinModeOutput(can_en.port, can_en.pinIndex, IfxPort_OutputMode_pushPull, can_en.mode);
     IfxPort_setPinModeOutput(net_power_en.port, net_power_en.pinIndex, IfxPort_OutputMode_pushPull, net_power_en.mode);
-    IfxPort_setPinModeOutput(test_Pin1.port, test_Pin1.pinIndex, IfxPort_OutputMode_pushPull, test_Pin1.mode);
+   // IfxPort_setPinModeOutput(test_Pin1.port, test_Pin1.pinIndex, IfxPort_OutputMode_pushPull, test_Pin1.mode);
     IfxPort_setPinModeOutput(test_Pin2.port, test_Pin2.pinIndex, IfxPort_OutputMode_pushPull, test_Pin2.mode);
     /* Set the pad driver mode for both pins connected to the LEDs */
     IfxPort_setPinPadDriver(can_stb1.port, can_stb1.pinIndex, can_stb1.padDriver);
@@ -119,7 +119,7 @@ void initGPIO(void)
     IfxPort_setPinPadDriver(can_en.port, can_en.pinIndex, can_en.padDriver);
     IfxPort_setPinPadDriver(net_power_en.port, net_power_en.pinIndex, net_power_en.padDriver);
 
-    IfxPort_setPinPadDriver(test_Pin1.port, test_Pin1.pinIndex, test_Pin1.padDriver);
+   // IfxPort_setPinPadDriver(test_Pin1.port, test_Pin1.pinIndex, test_Pin1.padDriver);
     IfxPort_setPinPadDriver(test_Pin2.port, test_Pin2.pinIndex, test_Pin2.padDriver);
 
 }

@@ -73,48 +73,47 @@ const NodeCanCfg_t CAN_cfgTable[8] = {
          {
            {&IfxCan_TXD10_P00_0_OUT,IfxPort_OutputMode_pushPull,&IfxCan_RXD10A_P00_1_IN,IfxPort_InputMode_pullUp,    // CAN10_RX
             IfxPort_PadDriver_cmosAutomotiveSpeed4},
-            MODULE_CAN1_RAM,  NODE0_RAM_OFFSET,IfxCan_NodeId_0,ISR_PRIORITY_CAN10_TX,ISR_PRIORITY_CAN10_RX,
-            ISR_PRIORITY_CAN10_ERR,IfxCan_InterruptLine_12, IfxCan_InterruptLine_13,IfxCan_InterruptLine_14
+            MODULE_CAN1_RAM,NODE0_RAM_OFFSET,IfxCan_NodeId_0,ISR_PRIORITY_CAN10_TX,ISR_PRIORITY_CAN10_RX,
+            ISR_PRIORITY_CAN10_ERR,IfxCan_InterruptLine_0, IfxCan_InterruptLine_1,IfxCan_InterruptLine_2
           },
           // CAN1 node 01
         {
           {&IfxCan_TXD11_P00_4_OUT,IfxPort_OutputMode_pushPull,&IfxCan_RXD11B_P00_5_IN,IfxPort_InputMode_pullUp,    // CAN11_RX
            IfxPort_PadDriver_cmosAutomotiveSpeed4 },
-           MODULE_CAN1_RAM, NODE1_RAM_OFFSET, IfxCan_NodeId_1,ISR_PRIORITY_CAN11_TX,ISR_PRIORITY_CAN11_RX,
-           ISR_PRIORITY_CAN11_ERR,IfxCan_InterruptLine_15, IfxCan_InterruptLine_16,IfxCan_InterruptLine_17
+           MODULE_CAN1_RAM,NODE1_RAM_OFFSET, IfxCan_NodeId_1,ISR_PRIORITY_CAN11_TX,ISR_PRIORITY_CAN11_RX,
+           ISR_PRIORITY_CAN11_ERR,IfxCan_InterruptLine_3, IfxCan_InterruptLine_4,IfxCan_InterruptLine_5
          },
          // CAN1 node 02
         {
           {&IfxCan_TXD12_P20_7_OUT,IfxPort_OutputMode_pushPull,&IfxCan_RXD12A_P20_6_IN,IfxPort_InputMode_pullUp,    // CAN12_RX
            IfxPort_PadDriver_cmosAutomotiveSpeed4 },
            MODULE_CAN1_RAM,NODE2_RAM_OFFSET, IfxCan_NodeId_2, ISR_PRIORITY_CAN12_TX,ISR_PRIORITY_CAN12_RX,
-           ISR_PRIORITY_CAN12_ERR, IfxCan_InterruptLine_18, IfxCan_InterruptLine_19,IfxCan_InterruptLine_20
+           ISR_PRIORITY_CAN12_ERR, IfxCan_InterruptLine_6, IfxCan_InterruptLine_7,IfxCan_InterruptLine_8
          },
          // CAN1 node 03
         {
           { &IfxCan_TXD13_P33_4_OUT,IfxPort_OutputMode_pushPull,&IfxCan_RXD13B_P33_5_IN,IfxPort_InputMode_pullUp,    // CAN13_RX
            IfxPort_PadDriver_cmosAutomotiveSpeed4},
-           MODULE_CAN1_RAM, NODE3_RAM_OFFSET,IfxCan_NodeId_3,ISR_PRIORITY_CAN13_TX,ISR_PRIORITY_CAN13_RX,
-           ISR_PRIORITY_CAN13_ERR, IfxCan_InterruptLine_21,IfxCan_InterruptLine_22,IfxCan_InterruptLine_23
+           MODULE_CAN1_RAM,NODE3_RAM_OFFSET,IfxCan_NodeId_3,ISR_PRIORITY_CAN13_TX,ISR_PRIORITY_CAN13_RX,
+           ISR_PRIORITY_CAN13_ERR, IfxCan_InterruptLine_9,IfxCan_InterruptLine_10,IfxCan_InterruptLine_11
          },
 };
-const uint32  sBaudCBT[BPS_NUM]   =            {0,50,100,125,250,500,1000};
-const uint32  sBaudFDCBT[BPS_FD_NUM] =         {0,1000,2000,4000,5000,8000};
+const uint32  sBaudCBT[BPS_NUM]   =                   {0,50,100,125,250,500,1000};
+const uint32  sBaudFDCBT[BPS_FD_NUM] =                {0,1000,2000,4000,5000,8000};
 const uint16  samplingpointArr[samplePoint_NUM] =     {700,750,800,850,875,900};
 const uint16  FDsamplingpointArr[fdsamplePoint_NUM] = {700,750,800,850,875};
-devcanfdRXringbuff RxBuff0;
-devcanfdRXringbuff RxBuff1;
-devcanfdRXringbuff RxBuff2;
-devcanfdRXringbuff RxBuff3;
-devcanfdRXringbuff RxBuff4;
-devcanfdRXringbuff RxBuff5;
-devcanfdRXringbuff RxBuff6;
-devcanfdRXringbuff RxBuff7;
+
 const uint8  nodeID_MCU0[8] =         {0,1,2,3,4,5,6,7};
 const uint8  nodeID_MCU1[8] =         {7,1,3,5,4,0,6,2};
-IfxCan_Can_Node                g_mcmcanNode[8];
-#define   DISABLE_CAN_ALL_INTERRUPT_MASK      0XFFFF
-
+IfxCan_Can_Node  g_mcmcanNode[8];
+uint32 can00cnt;
+uint32 can01cnt;
+uint32 can02cnt;
+uint32 can03cnt;
+uint32 can10cnt;
+uint32 can11cnt;
+uint32 can12cnt;
+uint32 can13cnt;
 
 SemaphoreHandle_t can0_xSemaphore = NULL;
 SemaphoreHandle_t can1_xSemaphore = NULL;
@@ -134,23 +133,23 @@ SemaphoreHandle_t can2_xSemaphore = NULL;
  *  - priority: Interrupt priority. Refer Usage of Interrupt Macro for more details.
  */
 
-IFX_INTERRUPT(can00IsrRxHandler, 1, ISR_PRIORITY_CAN00_RX);
-IFX_INTERRUPT(can01IsrRxHandler, 1, ISR_PRIORITY_CAN01_RX);
-IFX_INTERRUPT(can02IsrRxHandler, 1, ISR_PRIORITY_CAN02_RX);
-IFX_INTERRUPT(can03IsrRxHandler, 1, ISR_PRIORITY_CAN03_RX);
-IFX_INTERRUPT(can10IsrRxHandler, 1, ISR_PRIORITY_CAN10_RX);
-IFX_INTERRUPT(can11IsrRxHandler, 1, ISR_PRIORITY_CAN11_RX);
-IFX_INTERRUPT(can12IsrRxHandler, 1, ISR_PRIORITY_CAN12_RX);
-IFX_INTERRUPT(can13IsrRxHandler, 1, ISR_PRIORITY_CAN13_RX);
+IFX_INTERRUPT(can00IsrRxHandler, 0, ISR_PRIORITY_CAN00_RX);
+IFX_INTERRUPT(can01IsrRxHandler, 0, ISR_PRIORITY_CAN01_RX);
+IFX_INTERRUPT(can02IsrRxHandler, 0, ISR_PRIORITY_CAN02_RX);
+IFX_INTERRUPT(can03IsrRxHandler, 0, ISR_PRIORITY_CAN03_RX);
+IFX_INTERRUPT(can10IsrRxHandler, 0, ISR_PRIORITY_CAN10_RX);
+IFX_INTERRUPT(can11IsrRxHandler, 0, ISR_PRIORITY_CAN11_RX);
+IFX_INTERRUPT(can12IsrRxHandler, 0, ISR_PRIORITY_CAN12_RX);
+IFX_INTERRUPT(can13IsrRxHandler, 0, ISR_PRIORITY_CAN13_RX);
 
-IFX_INTERRUPT(can00IsrTxHandler, 1, ISR_PRIORITY_CAN00_TX);
-IFX_INTERRUPT(can01IsrTxHandler, 1, ISR_PRIORITY_CAN01_TX);
-IFX_INTERRUPT(can02IsrTxHandler, 1, ISR_PRIORITY_CAN02_TX);
-IFX_INTERRUPT(can03IsrTxHandler, 1, ISR_PRIORITY_CAN03_TX);
-IFX_INTERRUPT(can10IsrTxHandler, 1, ISR_PRIORITY_CAN10_TX);
-IFX_INTERRUPT(can11IsrTxHandler, 1, ISR_PRIORITY_CAN11_TX);
-IFX_INTERRUPT(can12IsrTxHandler, 1, ISR_PRIORITY_CAN12_TX);
-IFX_INTERRUPT(can13IsrTxHandler, 1, ISR_PRIORITY_CAN13_TX);
+IFX_INTERRUPT(can00IsrTxHandler, 0, ISR_PRIORITY_CAN00_TX);
+IFX_INTERRUPT(can01IsrTxHandler, 0, ISR_PRIORITY_CAN01_TX);
+IFX_INTERRUPT(can02IsrTxHandler, 0, ISR_PRIORITY_CAN02_TX);
+IFX_INTERRUPT(can03IsrTxHandler, 0, ISR_PRIORITY_CAN03_TX);
+IFX_INTERRUPT(can10IsrTxHandler, 0, ISR_PRIORITY_CAN10_TX);
+IFX_INTERRUPT(can11IsrTxHandler, 0, ISR_PRIORITY_CAN11_TX);
+IFX_INTERRUPT(can12IsrTxHandler, 0, ISR_PRIORITY_CAN12_TX);
+IFX_INTERRUPT(can13IsrTxHandler, 0, ISR_PRIORITY_CAN13_TX);
 
 //IFX_INTERRUPT(can00IsrERRHandler, 1, ISR_PRIORITY_CAN00_ERR);
 //IFX_INTERRUPT(can01IsrERRHandler, 1, ISR_PRIORITY_CAN01_ERR);
@@ -179,12 +178,13 @@ void can00IsrRxHandler(void)
     }
 
 }
-
+uint32 can01cnt;
 void can01IsrRxHandler(void)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     IfxCan_Node_clearInterruptFlag((Ifx_CAN_N *)g_mcmcanNode[1].node, IfxCan_Interrupt_rxFifo0NewMessage);
-    xSemaphoreGiveFromISR( can1_xSemaphore, &xHigherPriorityTaskWoken );
+    xSemaphoreGiveFromISR(can1_xSemaphore, &xHigherPriorityTaskWoken);
+   // can01cnt++;
     if( xHigherPriorityTaskWoken != pdFALSE )
     {
         portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
@@ -206,33 +206,33 @@ void can02IsrRxHandler(void)
 
 void can03IsrRxHandler(void)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+   // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     IfxCan_Node_clearInterruptFlag((Ifx_CAN_N *)g_mcmcanNode[3].node, IfxCan_Interrupt_rxFifo0NewMessage);
     print("444\r\n");
 }
 
 void can10IsrRxHandler(void)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+   // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     IfxCan_Node_clearInterruptFlag((Ifx_CAN_N *)g_mcmcanNode[4].node, IfxCan_Interrupt_rxFifo0NewMessage);
     print("555\r\n");
 }
 
 void can11IsrRxHandler(void)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+   // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     IfxCan_Node_clearInterruptFlag((Ifx_CAN_N *)g_mcmcanNode[5].node, IfxCan_Interrupt_rxFifo0NewMessage);
 
 }
 void can12IsrRxHandler(void)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+   // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     IfxCan_Node_clearInterruptFlag((Ifx_CAN_N *)g_mcmcanNode[6].node, IfxCan_Interrupt_rxFifo0NewMessage);
     print("6666\r\n");
 }
 void can13IsrRxHandler(void)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+   // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     IfxCan_Node_clearInterruptFlag((Ifx_CAN_N *)g_mcmcanNode[7].node, IfxCan_Interrupt_rxFifo0NewMessage);
     print("7777\r\n");
 }
@@ -269,12 +269,9 @@ void initMcmcan(uint8 nodeid, canInitConfigType  *canInitConfig)
      canNodeConfig.rxConfig.rxFifo1DataFieldSize = IfxCan_DataFieldSize_64;
      canNodeConfig.rxConfig.rxFifo0OperatingMode = IfxCan_RxFifoMode_overwrite;   //or block
      canNodeConfig.rxConfig.rxFifo1OperatingMode = IfxCan_RxFifoMode_overwrite;
-   //  canNodeConfig.filterConfig.messageIdLength = IfxCan_MessageIdLength_both;
 
      //Message RAM
      canNodeConfig.messageRAM.baseAddress =CAN_cfgTable[nodeid].ramBaseAddr;
-    // canNodeConfig.messageRAM.standardFilterListStartAddress = 0x0 + CAN_cfgTable[nodeid].ramBaseAddrOffset;
-    // canNodeConfig.messageRAM.extendedFilterListStartAddress = 0x80 + CAN_cfgTable[nodeid].ramBaseAddrOffset;
      canNodeConfig.messageRAM.rxFifo0StartAddress = 0x100 + CAN_cfgTable[nodeid].ramBaseAddrOffset;
      canNodeConfig.messageRAM.txBuffersStartAddress = 0x6A0 + CAN_cfgTable[nodeid].ramBaseAddrOffset;
      //Total: 128 + 128 + 1440 + 1440 = 3136 Bytes
@@ -284,18 +281,18 @@ void initMcmcan(uint8 nodeid, canInitConfigType  *canInitConfig)
          canNodeConfig.interruptConfig.rxFifo0NewMessageEnabled = FALSE;
          canNodeConfig.interruptConfig.rxf0n.priority = CAN_cfgTable[nodeid].priorityRX;
          canNodeConfig.interruptConfig.rxf0n.interruptLine = CAN_cfgTable[nodeid].interruptLineRX;
-         canNodeConfig.interruptConfig.rxf0n.typeOfService =IfxSrc_Tos_cpu1;
+         canNodeConfig.interruptConfig.rxf0n.typeOfService =IfxSrc_Tos_cpu0;
          canNodeConfig.interruptConfig.protocolErrorDataEnabled = FALSE;
          canNodeConfig.interruptConfig. protocolErrorArbitrationEnabled = FALSE;
          canNodeConfig.interruptConfig.loi.priority = CAN_cfgTable[nodeid].priorityERR;
          canNodeConfig.interruptConfig.loi.interruptLine = CAN_cfgTable[nodeid].interruptLineERR;
-         canNodeConfig.interruptConfig.loi.typeOfService =IfxSrc_Tos_cpu1;
+         canNodeConfig.interruptConfig.loi.typeOfService =IfxSrc_Tos_cpu0;
 
          //transmit interrupt
          canNodeConfig.interruptConfig.transmissionCompletedEnabled = FALSE;
          canNodeConfig.interruptConfig.traco.priority = CAN_cfgTable[nodeid].priorityTX;
          canNodeConfig.interruptConfig.traco.interruptLine = CAN_cfgTable[nodeid].interruptLineTX;
-         canNodeConfig.interruptConfig.traco.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());;
+         canNodeConfig.interruptConfig.traco.typeOfService = IfxSrc_Tos_cpu0;
 
          //ERR interrupt
         // canNodeConfig.interruptConfig.busOffStatusEnabled = FALSE;
@@ -307,40 +304,23 @@ void initMcmcan(uint8 nodeid, canInitConfigType  *canInitConfig)
          canNodeConfig.interruptConfig.rxFifo0NewMessageEnabled = TRUE;
          canNodeConfig.interruptConfig.rxf0n.priority = CAN_cfgTable[nodeid].priorityRX;
          canNodeConfig.interruptConfig.rxf0n.interruptLine = CAN_cfgTable[nodeid].interruptLineRX;
-         canNodeConfig.interruptConfig.rxf0n.typeOfService =IfxSrc_Tos_cpu1;
+         canNodeConfig.interruptConfig.rxf0n.typeOfService =IfxSrc_Tos_cpu0;
 
          //canNodeConfig.interruptConfig.protocolErrorDataEnabled = TRUE;
          //canNodeConfig.interruptConfig. protocolErrorArbitrationEnabled = TRUE;
          //canNodeConfig.interruptConfig.loi.priority = CAN_cfgTable[nodeid].priorityERR;
          //canNodeConfig.interruptConfig.loi.interruptLine = CAN_cfgTable[nodeid].interruptLineERR;
          //canNodeConfig.interruptConfig.loi.typeOfService =IfxSrc_Tos_cpu1;
-        //ERR interrupt
-        //busoff
-        // canNodeConfig.interruptConfig.busOffStatusEnabled = TRUE;
-        // canNodeConfig.interruptConfig.boff.priority = CAN_cfgTable[nodeid].priorityERR;
-        // canNodeConfig.interruptConfig.boff.interruptLine = CAN_cfgTable[nodeid].interruptLineERR;
-        // canNodeConfig.interruptConfig.boff.typeOfService =IfxSrc_Tos_cpu1;
+
         //手册40-112 MRAF 及 40-7 图 40-80表 可以看到 MARF属于moer中断组
         //手册40-114 MARF中断
         //手册40-106 ECRi错误计数
         //手册40-107 PSRi错误种类
         //transmit interrupt
-        canNodeConfig.interruptConfig.transmissionCompletedEnabled = TRUE;
-        canNodeConfig.interruptConfig.traco.priority = CAN_cfgTable[nodeid].priorityTX;
-        canNodeConfig.interruptConfig.traco.interruptLine = CAN_cfgTable[nodeid].interruptLineTX;
-        canNodeConfig.interruptConfig.traco.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
-
-        //ERR interrupt
-        //canNodeConfig.interruptConfig.busOffStatusEnabled = TRUE;
-        //canNodeConfig.interruptConfig.rxf0n.priority = CAN_cfgTable[nodeid].priorityERR;
-        //canNodeConfig.interruptConfig.rxf0n.interruptLine = CAN_cfgTable[nodeid].interruptLineERR;
-        //canNodeConfig.interruptConfig.rxf0n.typeOfService =IfxSrc_Tos_cpu1;
-
-        //canNodeConfig.interruptConfig.errorPassiveEnabled = TRUE;
-        //canNodeConfig.interruptConfig.warningStatusEnabled = TRUE;
-        //canNodeConfig.interruptConfig.alrt.priority = CAN_cfgTable[nodeid].priorityERR;
-        //canNodeConfig.interruptConfig.alrt.interruptLine = CAN_cfgTable[nodeid].interruptLineERR;
-        //canNodeConfig.interruptConfig.alrt.typeOfService =IfxSrc_Tos_cpu1;
+       // canNodeConfig.interruptConfig.transmissionCompletedEnabled = TRUE;
+       // canNodeConfig.interruptConfig.traco.priority = CAN_cfgTable[nodeid].priorityTX;
+       // canNodeConfig.interruptConfig.traco.interruptLine = CAN_cfgTable[nodeid].interruptLineTX;
+       // canNodeConfig.interruptConfig.traco.typeOfService = IfxSrc_Tos_cpu0;
      }
 
         //clock: 80M
@@ -362,9 +342,9 @@ void initMcmcan(uint8 nodeid, canInitConfigType  *canInitConfig)
            canNodeConfig.fastBaudRate.samplePoint =0;
            canNodeConfig.frame.mode =IfxCan_FrameMode_standard ;
        }
-       can0_xSemaphore= xSemaphoreCreateCounting(20,0);
-       can1_xSemaphore= xSemaphoreCreateCounting(20,0);
-       can2_xSemaphore= xSemaphoreCreateCounting(20,0);
+       can0_xSemaphore= xSemaphoreCreateCounting(10,0);
+       can1_xSemaphore= xSemaphoreCreateCounting(10,0);
+       can2_xSemaphore= xSemaphoreCreateCounting(10,0);
        canNodeConfig.pins= &CAN_cfgTable[nodeid].pin;
        IfxCan_Can_initNode(&g_mcmcanNode[nodeid], &canNodeConfig);
 }
@@ -392,7 +372,12 @@ uint8 transmitCanMessage(uint8 nodeid,uint32 messageID,uint32 *data,IfxCan_DataL
       txMsg.messageId         = messageID;
       txMsg.storeInTxFifoQueue = TRUE;// 写入 TX FIFO
      // Ifx_Console_print("can send\r\n");
-      IfxCan_Can_sendMessage(&g_mcmcanNode[nodeid], &txMsg, data);
+    if((IfxCan_Can_sendMessage(&g_mcmcanNode[nodeid], &txMsg, data))==IfxCan_Status_ok)
+    {
+        //UDS 发送成功处理
+        //根据诊断类ID处理
+        TP_DoTxMsgSuccesfulCallback();
+    };
 
     return 0;
 }

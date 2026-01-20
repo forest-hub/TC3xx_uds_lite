@@ -1,6 +1,6 @@
 #include "can_if.h"
 #include "can_tp_cfg.h"
-
+#include "can_tp.h"
 /*
     description: the enum have not init all member. Because, different project maybe have different MAX_TP_NO.
     The enum is a global enum and value.

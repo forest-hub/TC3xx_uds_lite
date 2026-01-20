@@ -43,7 +43,7 @@
 #define INCLUDE_vTaskDelay                         1
 
 /* Interrupt above priority 31 are not effected by critical sections, but cannot call interrupt safe FreeRTOS functions. */
-#define configMAX_API_CALL_INTERRUPT_PRIORITY      31
+#define configMAX_API_CALL_INTERRUPT_PRIORITY      50
 
 /* Default definition of configASSERT(). */
 #ifdef DEBUG

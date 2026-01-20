@@ -49,24 +49,25 @@
 #define NODE1_RAM_OFFSET   0x1000
 #define NODE2_RAM_OFFSET   0x2000
 #define NODE3_RAM_OFFSET   0x3000
+#define E_OK 0x00
+#define E_NOT_OK 0x01
+#define ISR_PRIORITY_CAN00_RX         30                           /* Define the CAN RX interrupt priority              */
+#define ISR_PRIORITY_CAN01_RX         31                           /* Define the CAN RX interrupt priority              */
+#define ISR_PRIORITY_CAN02_RX         32                           /* Define the CAN RX interrupt priority              */
+#define ISR_PRIORITY_CAN03_RX         33                           /* Define the CAN RX interrupt priority              */
+#define ISR_PRIORITY_CAN10_RX         34                           /* Define the CAN RX interrupt priority              */
+#define ISR_PRIORITY_CAN11_RX         35                           /* Define the CAN RX interrupt priority              */
+#define ISR_PRIORITY_CAN12_RX         36                           /* Define the CAN RX interrupt priority              */
+#define ISR_PRIORITY_CAN13_RX         37                           /* Define the CAN RX interrupt priority              */
 
-#define ISR_PRIORITY_CAN00_RX         10                           /* Define the CAN RX interrupt priority              */
-#define ISR_PRIORITY_CAN01_RX         11                           /* Define the CAN RX interrupt priority              */
-#define ISR_PRIORITY_CAN02_RX         12                           /* Define the CAN RX interrupt priority              */
-#define ISR_PRIORITY_CAN03_RX         13                           /* Define the CAN RX interrupt priority              */
-#define ISR_PRIORITY_CAN10_RX         14                           /* Define the CAN RX interrupt priority              */
-#define ISR_PRIORITY_CAN11_RX         15                           /* Define the CAN RX interrupt priority              */
-#define ISR_PRIORITY_CAN12_RX         16                           /* Define the CAN RX interrupt priority              */
-#define ISR_PRIORITY_CAN13_RX         17                           /* Define the CAN RX interrupt priority              */
-
-#define ISR_PRIORITY_CAN00_TX         30                           /* Define the CAN TX interrupt priority              */
-#define ISR_PRIORITY_CAN01_TX         31                           /* Define the CAN TX interrupt priority              */
-#define ISR_PRIORITY_CAN02_TX         32                           /* Define the CAN TX interrupt priority              */
-#define ISR_PRIORITY_CAN03_TX         33                           /* Define the CAN TX interrupt priority              */
-#define ISR_PRIORITY_CAN10_TX         34                           /* Define the CAN TX interrupt priority              */
-#define ISR_PRIORITY_CAN11_TX         35                           /* Define the CAN TX interrupt priority              */
-#define ISR_PRIORITY_CAN12_TX         36                           /* Define the CAN TX interrupt priority              */
-#define ISR_PRIORITY_CAN13_TX         37                           /* Define the CAN TX interrupt priority              */
+#define ISR_PRIORITY_CAN00_TX         80                           /* Define the CAN TX interrupt priority              */
+#define ISR_PRIORITY_CAN01_TX         81                           /* Define the CAN TX interrupt priority              */
+#define ISR_PRIORITY_CAN02_TX         82                           /* Define the CAN TX interrupt priority              */
+#define ISR_PRIORITY_CAN03_TX         83                           /* Define the CAN TX interrupt priority              */
+#define ISR_PRIORITY_CAN10_TX         84                           /* Define the CAN TX interrupt priority              */
+#define ISR_PRIORITY_CAN11_TX         85                           /* Define the CAN TX interrupt priority              */
+#define ISR_PRIORITY_CAN12_TX         86                           /* Define the CAN TX interrupt priority              */
+#define ISR_PRIORITY_CAN13_TX         87                           /* Define the CAN TX interrupt priority              */
 
 #define ISR_PRIORITY_CAN00_ERR         60                           /* Define the CAN RX interrupt priority              */
 #define ISR_PRIORITY_CAN01_ERR         61                           /* Define the CAN RX interrupt priority              */
@@ -223,6 +224,15 @@ typedef struct
 
 typedef struct
 {
+    uint32 cs;                        /**< Code and Status*/
+    uint32 msgId;                     /**< Message Buffer ID*/
+    uint8 data[64];                   /**< Data bytes of the FlexCAN message*/
+    uint8 dataLen;                    /**< Length of data in bytes */
+    uint8 id_hit;                     /**< Identifier Acceptance Filter Hit Indicator*/
+    uint32 time_stamp;                /**< Free-Running Counter Time Stamp*/
+} Flexcan_Ip_MsgBuffType;
+typedef struct
+{
    devcanRXringbuffmessage msg;
 
    union{
@@ -244,6 +254,16 @@ typedef struct
     uint8 pageNum[4];
     uint8 status[4];  /* status[0]: DBC, status[1]: SLEEP, status[2]: app_up */
 }stParam_t;
+
+typedef enum
+{
+    FLEXCAN_STATUS_SUCCESS  = E_OK,          /**< Successfull Operation Completed */
+    FLEXCAN_STATUS_ERROR = E_NOT_OK,         /**< Error Operation Completed */
+    FLEXCAN_STATUS_BUSY,                     /**< Busy Operation Completed */
+    FLEXCAN_STATUS_TIMEOUT,                  /**< TimeOut Operation Completed */
+    FLEXCAN_STATUS_BUFF_OUT_OF_RANGE,        /**< The specified MB index is out of the configurable range */
+    FLEXCAN_STATUS_NO_TRANSFER_IN_PROGRESS,  /**< There is no transmission or reception in progress */
+} Flexcan_Ip_StatusType;
 /*********************************************************************************************************************/
 /*-----------------------------------------------Function Prototypes-------------------------------------------------*/
 /*********************************************************************************************************************/

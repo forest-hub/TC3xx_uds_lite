@@ -230,8 +230,6 @@ static void CANTP_AbortTxMsg(void)
 	{
 		print("CANTP_AbortTxMsg: Clear TX BUS FIFO failed!\n");
 	}
-
-
 }
 
 /*register abort tx message to BUS*/
@@ -252,6 +250,7 @@ boolean CANTP_DriverWriteDataInCANTP(const uint32 i_RxID, const uint32 i_dataLen
 	ASSERT(NULL_PTR == i_pDataBuf);
 
 	GetCanWriteLen(RX_BUS_FIFO, &xCanWriteDataLen, &eStatus);
+
 	if((ERRO_NONE == eStatus) && ((i_dataLen + headerLen) <= xCanWriteDataLen))
 	{
 		stRxCanMsg.rxDataId = i_RxID;

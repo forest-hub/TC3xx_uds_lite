@@ -32,8 +32,8 @@ static tUdsInfo gs_stUdsInfo =
     DEFALUT_SESSION,
     ERRO_REQUEST_ID,
     NONE_SECURITY,
-    0u,
-    0u,
+    5000u,
+    5000u,
 };
 
 
@@ -85,11 +85,11 @@ static void UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint
 
 /*do reset mcu*/
 static void UDS_DoResetMCU(uint8 i_Txstatus);
-
+boolean UDS_ALG_HAL_GetRandom(const uint32 i_needRandomDataLen, uint8 *o_pRandomDataBuf);
 /******************************UDS service main function define***************************************/
 /*dig session*/
 static void UDS_DigSession_0x10(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
-
+static void UDS_SecurityAccess_0x27(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 /*control DTC setting*/
 static void UDS_ControlDTCSetting_0x85(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 
@@ -98,10 +98,11 @@ static void UDS_CommunicationControl_0x28(struct UDSServiceInfo* i_pstUDSService
 
 /*routine control*/
 static void UDS_RoutineControl_0x31(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
-
+static uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,const uint8 *i_pTxSeed,const uint8 KeyLen);
 /*Tester present service*/
 static void UDS_TesterPresent_0x3E(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
-
+/*reset ECU*/
+static void UDS_ResetECU_0x11(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 /***********************UDS service Static Global value************************/
 /*dig serverice config table*/
 const static tUDSService gs_astUDSService[] =
@@ -114,6 +115,22 @@ const static tUDSService gs_astUDSService[] =
         NONE_SECURITY,
         UDS_DigSession_0x10
     },
+    /*reset ECU*/
+    {
+        0x11u,
+        PROGRAM_SESSION,
+        SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
+        SECURITY_LEVEL_1,
+        UDS_ResetECU_0x11
+    },
+    /*security access*/
+      {
+          0x27u,
+          PROGRAM_SESSION,
+          SUPPORT_PHYSICAL_ADDR,
+          NONE_SECURITY,
+          UDS_SecurityAccess_0x27
+      },
 
     /*communication control*/
     {
@@ -239,13 +256,18 @@ static void UDS_DigSession_0x10(struct UDSServiceInfo* i_pstUDSServiceInfo, tUds
 
     case 0x02u :  /*program mode*/
     case 0x82u :
+        //进入0x10 编程会话，会调用重启MCU,并把升级标记 写进flash,然后看门狗重启MCU,MCU重启起来会发0x11的肯定响应。
+        //我们这里不这么干，我们有其他事要做，不止升级
         UDS_SetCurrentSession(PROGRAM_SESSION);
 
-        m_pstPDUMsg->xDataLen = 0u;
+        if(0x82u == requestSubfunction)
+        {
+           m_pstPDUMsg->xDataLen = 0u;
+        }
 
         /*request more time*/
-        UDS_RequestMoreTime(i_pstUDSServiceInfo->serNum, &UDS_DoResetMCU);
-
+       // UDS_RequestMoreTime(i_pstUDSServiceInfo->serNum, &UDS_DoResetMCU);
+        UDS_RestartS3Server();
         break;
 
     case 0x03u :  /*extend mode*/
@@ -267,6 +289,93 @@ static void UDS_DigSession_0x10(struct UDSServiceInfo* i_pstUDSServiceInfo, tUds
     }
 }
 
+/*reset ECU*/
+static void UDS_ResetECU_0x11(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+{
+    ASSERT(NULL_PTR == m_pstPDUMsg);
+    ASSERT(NULL_PTR == i_pstUDSServiceInfo);
+
+    /*If program data in flash successfull, set Bootloader will jump to application flag*/
+   // Flash_EraseFlashDriverInRAM();
+
+    /*If invalid application software in flash, then this step set application jump to bootloader flag*/
+   // Boot_SetDownloadAppSuccessful();
+
+    m_pstPDUMsg->pfUDSTxMsgServiceCallBack = &UDS_DoResetMCU;
+
+    /*request client timeout time*/
+    UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RCRRP, m_pstPDUMsg);
+}
+
+/*security access*/
+static void UDS_SecurityAccess_0x27(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+{
+    uint8 requestSubfunction = 0u;
+    static uint8 s_aSeedBuf[AES_SEED_LEN] = {0u};
+    boolean ret = FALSE;
+
+    ASSERT(NULL_PTR == m_pstPDUMsg);
+    ASSERT(NULL_PTR == i_pstUDSServiceInfo);
+
+    /*get subfunction*/
+    requestSubfunction = m_pstPDUMsg->aDataBuf[1u];
+
+    switch(requestSubfunction)
+    {
+        case 0x01u :
+             //调试用
+             m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+             m_pstPDUMsg->xDataLen = 4u;
+             m_pstPDUMsg->aDataBuf[2u]=0x11;
+             m_pstPDUMsg->aDataBuf[3u]=0x12;
+             UDS_AppMemcopy(&m_pstPDUMsg->aDataBuf[2u], 2, s_aSeedBuf);
+            /*get random and put in m_pstPDUMsg->aDataBuf[2u] ~ 17u byte*/
+           // ret = UDS_ALG_HAL_GetRandom(AES_SEED_LEN, s_aSeedBuf);
+
+           // if(TRUE == ret)
+           // {
+           //     UDS_AppMemcopy(s_aSeedBuf, AES_SEED_LEN, &m_pstPDUMsg->aDataBuf[2u]);
+           //     m_pstPDUMsg->xDataLen = 2u + AES_SEED_LEN;
+          //  }
+          //  else
+          //  {
+          //      UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, IK, m_pstPDUMsg);
+          //  }
+
+            break;
+
+        case 0x02u :
+
+            /*count random to key and check received key right?*/
+           // if(TRUE == UDS_IsReceivedKeyRight(&m_pstPDUMsg->aDataBuf[2u], s_aSeedBuf, AES_SEED_LEN))
+           // {
+           //     m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+
+            //    m_pstPDUMsg->xDataLen = 2u;
+
+            //   UDS_AppMemset(0x1u, sizeof(s_aSeedBuf), s_aSeedBuf);
+
+            //    UDS_SetSecurityLevel(SECURITY_LEVEL_1);
+           // }
+            //调试用
+            if(memcmp(s_aSeedBuf,&m_pstPDUMsg->aDataBuf[2u],2)==0)
+            {
+                m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+                m_pstPDUMsg->xDataLen = 2u;
+                UDS_SetSecurityLevel(SECURITY_LEVEL_1);
+            }
+            else
+            {
+                UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, IK, m_pstPDUMsg);
+             }
+
+            break;
+
+        default :
+
+            break;
+    }
+}
 /*control DTC setting*/
 static void UDS_ControlDTCSetting_0x85(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
@@ -416,11 +525,12 @@ static void UDS_DoResetMCU(uint8 Txstatus)
        // Boot_RequestEnterBootloader();
 
         /*reset ECU*/
+        print("rest ecu\r\n");
        // WATCHDOG_HAL_SystemRest();
-        while(1)
-        {
+     //   while(1)
+      //  {
             /*wait watch dog reset mcu*/
-        }
+      //  }
     }
 }
 
@@ -531,7 +641,6 @@ void UDS_SaveRequestIdType(const uint32 i_serRequestID)
 uint8 UDS_IsCurRxIdCanRequest(uint8 i_serRequestIdMode)
 {
     uint8 status = 0u;
-
     if((i_serRequestIdMode & gs_stUdsInfo.requsetIdMode) == gs_stUdsInfo.requsetIdMode)
     {
         status = TRUE;
@@ -555,7 +664,9 @@ uint8 UDS_IsCurSecurityLevelRequest(uint8 i_securityLevel)
 {
     uint8 status = 0u;
 
-    if((i_securityLevel & gs_stUdsInfo.securityLevel) == gs_stUdsInfo.securityLevel)
+   //
+   // if((i_securityLevel & gs_stUdsInfo.securityLevel) == gs_stUdsInfo.securityLevel)
+    if((i_securityLevel & gs_stUdsInfo.securityLevel) == i_securityLevel)
     {
         status = TRUE;
     }
@@ -703,7 +814,32 @@ boolean UDS_TxMsgToHost(void)
 
     return ret;
 }
+/*check random is right?*/
+static uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,
+                                const uint8 *i_pTxSeed,
+                                const uint8 KeyLen)
+{
+    uint8 index = 0u;
+    uint8 aPlainText[AES_SEED_LEN] = {0u};
 
+    ASSERT(NULL_PTR == i_pReceivedKey);
+    ASSERT(NULL_PTR == i_pTxSeed);
+
+    UDS_ALG_HAL_DecryptData(i_pReceivedKey, KeyLen, aPlainText);
+
+    index = 0u;
+    while(index < AES_SEED_LEN)
+    {
+        if(aPlainText[index] != i_pTxSeed[index])
+        {
+            return FALSE;
+        }
+
+        index++;
+    }
+
+    return TRUE;
+}
 /*uds time control*/
 void UDS_SystemTickCtl(void)
 {

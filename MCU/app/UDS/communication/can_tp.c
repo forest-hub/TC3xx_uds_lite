@@ -347,6 +347,7 @@ void CANTP_MainFun(void)
             if(TRUE == CANTP_IsReceivedMsgIDValid(stRxCanTpMsg.xMsgId))
             {
                 stRxCanTpMsg.isFree = FALSE;
+                print("[%s]:rx bus fifo,id: %x \r\n",__func__,stRxCanTpMsg.xMsgId);
             }
         }
     }
@@ -513,16 +514,20 @@ static tN_Result CANTP_DoCanTpIdle(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
         {
             print("\n %s received invalid message!\n", __func__);
         }
+
+        print("[%s]:rx bus fifo,frame style %d\r\n",__func__,*m_peNextStatus);
+
     }
     else
     {
+
         /*Judge have message can will tx.*/
         if(TRUE == CANTP_CopyAFrameFromFifoToBuf(&gs_stCanTPTxDataInfo.stCanTpDataInfo.xCanTpId,
                                           &txDataLen,
                                           gs_stCanTPTxDataInfo.stCanTpDataInfo.aDataBuf))
         {
             gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen = txDataLen;
-
+            print("[%s]:tx bus fifo,id: %x ,len: %d \r\n",__func__,gs_stCanTPTxDataInfo.stCanTpDataInfo.xCanTpId,txDataLen);
             if(TRUE == IsTxDataLenOverflowSF())
             {
                 *m_peNextStatus = TX_FF;
@@ -564,6 +569,7 @@ static tN_Result CANTP_DoReceiveSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     }
 
     /*Get Rx message valid position*/
+    //在这里把用dataStartPos 把协议data[0] 去掉，也就是去掉can数据协议长度
     if(TRUE != GetRxSFMsgValidPosition(m_stMsgInfo->msgLen, &dataStartPos))
     {
         print("SF: GetRxSFMsgValidPosition failed!\n");
@@ -580,7 +586,7 @@ static tN_Result CANTP_DoReceiveSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
 
         return N_ERROR;
     }
-
+    print("[%s]:RX bus to tp fifo. id:%x-data:%02x\r\n",__func__,m_stMsgInfo->xMsgId,m_stMsgInfo->aMsgBuf[dataStartPos]);
     *m_peNextStatus = IDLE;
 
     return N_OK;
@@ -935,6 +941,7 @@ static void CANTP_DoTransmitFFCallBack(void)
     AddTxDataLen(TX_FF_DATA_MIN_LEN - 2);
 
     /*set Tx wait time*/
+    //等待流控帧超时
     TXFrame_SetRxMsgWaitTime(g_stCANUdsNetLayerCfgInfo.xNBs);
 
     /*jump to idle and clear transmitted message.*/

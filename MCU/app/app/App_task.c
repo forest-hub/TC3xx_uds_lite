@@ -36,11 +36,13 @@
 #include "gpio.h"
 #include <can.h>
 #include "semphr.h"
+#include "pwm.h"
+#include "uds_app.h"
+#include "can_if.h"
 /*********************************************************************************************************************/
 /*-----------------------------------------------------Macros--------------------------------------------------------*/
 /*********************************************************************************************************************/
 #define LED1_BLINKY_PERIOD_MS (250)                         /* The period (in milliseconds) at which LED1 will blink */
-extern IfxPort_Pin_Config          test_Pin1;                     /* MCU ms synchronous tigger      */
 extern IfxPort_Pin_Config          test_Pin2;                     /* MCU ms synchronous tigger      */
 extern IfxCan_Can_Node             g_mcmcanNode[8];
 extern uint32 isrRxCount;
@@ -49,22 +51,18 @@ extern uint32 isrRxCount;
 /*********************************************************************************************************************/
 /* Initialization function for LED1 app */
 uint32 taskcun;
-
-extern devcanfdRXringbuff RxBuff0;
-extern devcanfdRXringbuff RxBuff1;
-extern devcanfdRXringbuff RxBuff2;
+extern uint32 can00cnt;
+extern uint32 can01cnt;
+extern uint32 can02cnt;
+extern uint32 can03cnt;
+extern uint32 can10cnt;
+extern uint32 can11cnt;
+extern uint32 can12cnt;
+extern uint32 can13cnt;
 extern SemaphoreHandle_t can0_xSemaphore ;
 extern SemaphoreHandle_t can1_xSemaphore ;
 extern SemaphoreHandle_t can2_xSemaphore ;
 
-devcanfdRXringbuff RxBuff0;
-devcanfdRXringbuff RxBuff1;
-devcanfdRXringbuff RxBuff2;
-devcanfdRXringbuff RxBuff3;
-devcanfdRXringbuff RxBuff4;
-devcanfdRXringbuff RxBuff5;
-devcanfdRXringbuff RxBuff6;
-devcanfdRXringbuff RxBuff7;
 /* Task which runs the LED1 app */
 void task_uart(void *arg)
 {
@@ -72,11 +70,10 @@ void task_uart(void *arg)
     while (1)
     {
         /* Toggle LED1 state */
-        taskcun++;
-        print("task1 %d -> %d \r\n",taskcun ,isrRxCount);
-       // Ifx_Console_print("uart test %d\r\n",taskcun);
+        // print("can00cnt %d\r\n",can00cnt);
+        // print("can01cnt %d\r\n",can01cnt);
         /* Delay 250ms */
-        vTaskDelay(pdMS_TO_TICKS(10000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -87,59 +84,93 @@ void task_led(void *arg)
     while (1)
     {
         /* Toggle LED1 state */
-        IfxPort_togglePin(test_Pin1.port, test_Pin1.pinIndex);
-        //taskcun++;
-             // print("task2 %d\r\n",taskcun);
+       // IfxPort_togglePin(test_Pin1.port, test_Pin1.pinIndex);
+        fadeLED();
         /* Delay 250ms */
-        vTaskDelay(pdMS_TO_TICKS(250));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
+/*Send msg main function*/
+static void SendMsgMainFun(void)
+{
+    Flexcan_Ip_MsgBuffType txMsg;
+    uint32 dataLen;
+        if(TRUE == TP_DriverReadDataFromTP(sizeof(txMsg.data), txMsg.data, &(txMsg.msgId), &(dataLen)))
+        {
+            transmitCanMessage(1,txMsg.msgId,txMsg.data,
+                    dataLen,IfxCan_MessageIdLength_extended,IfxCan_FrameMode_standard);
+        }
 
+}
 void task_uds(void *arg)
 {
     while (1)
     {
 
+        TP_SystemTickCtl();
+
+        UDS_SystemTickCtl();
 
         TP_MainFun();
 
         UDS_MainFun();
 
+        SendMsgMainFun();
+
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
-
+uint32 rcan00cun;
+uint8  datalen[16]={0,1,2,3,4,5,6,7,8,12,16,20,24,32,48,64};
 void task_can0_Rx(void *arg)
 {
     IfxCan_Message message;
+    Flexcan_Ip_MsgBuffType g_RXCANMsg;
     uint8 data[64]={0};
+    memset(&message,0,sizeof(message));
+    memset(&g_RXCANMsg,0,sizeof(g_RXCANMsg));
     while(1)
     {
-
         if (xSemaphoreTake(can0_xSemaphore, portMAX_DELAY) == pdPASS)
         {
+            message.readFromRxFifo0=1;
             IfxCan_Can_readMessage(&g_mcmcanNode[0], &message, (uint32 *)data);
+            g_RXCANMsg.msgId =  message.messageId;
+            g_RXCANMsg.dataLen =  message.dataLengthCode;
+            memcpy(g_RXCANMsg.data,data,datalen[ g_RXCANMsg.dataLen]);
+            rcan00cun++;
 
-
-
+           // TP_DriverWriteDataInTP(g_RXCANMsg.msgId, g_RXCANMsg.dataLen, g_RXCANMsg.data);
         }
         vTaskDelay(pdMS_TO_TICKS(1));
-
     }
 }
 
-
+uint32 rcan01cun;
 void task_can1_Rx(void *arg)
 {
     IfxCan_Message message;
+    Flexcan_Ip_MsgBuffType g_RXCANMsg;
     uint8 data[64]={0};
+    memset(&message,0,sizeof(message));
+    memset(&g_RXCANMsg,0,sizeof(g_RXCANMsg));
     while(1)
     {
-       if (xSemaphoreTake(can1_xSemaphore, 10) == pdPASS)
+       if (xSemaphoreTake(can1_xSemaphore, 100) == pdPASS)
         {
+           message.readFromRxFifo0=1;
            IfxCan_Can_readMessage(&g_mcmcanNode[1], &message, (uint32 *)data);
-        }
+           g_RXCANMsg.msgId =  message.messageId;
+           g_RXCANMsg.dataLen =  message.dataLengthCode;
+           memcpy(g_RXCANMsg.data,data,datalen[ g_RXCANMsg.dataLen]);
+           rcan01cun++;
+           print("\r\n[%s]: RX: %08x:%02x %02x %02x %02x %02x %02x %02x %02x : %d\r\n",__func__,g_RXCANMsg.msgId,
+                   g_RXCANMsg.data[0],g_RXCANMsg.data[1],g_RXCANMsg.data[2],g_RXCANMsg.data[3],
+                   g_RXCANMsg.data[4],g_RXCANMsg.data[5],g_RXCANMsg.data[6],g_RXCANMsg.data[7],datalen[ g_RXCANMsg.dataLen]);
+
+           TP_DriverWriteDataInTP(g_RXCANMsg.msgId, g_RXCANMsg.dataLen, g_RXCANMsg.data);
+       }
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
@@ -153,6 +184,7 @@ void task_can2_Rx(void *arg)
     {
         if (xSemaphoreTake(can2_xSemaphore, 10) == pdPASS)
         {
+            message.readFromRxFifo0=1;
             IfxCan_Can_readMessage(&g_mcmcanNode[2], &message, (uint32 *)data);
 
         }
@@ -163,6 +195,7 @@ void task_can2_Rx(void *arg)
 
 void can_rx_create(void)
 {
+    xTaskCreate(task_uds    , "task uds",     configMINIMAL_STACK_SIZE, NULL, 10, NULL);
     xTaskCreate(task_can0_Rx, "task can0 Rx", configMINIMAL_STACK_SIZE, NULL, 10, NULL);
     xTaskCreate(task_can1_Rx, "task can1 Rx", configMINIMAL_STACK_SIZE, NULL, 11, NULL);
     xTaskCreate(task_can2_Rx, "task can2 Rx", configMINIMAL_STACK_SIZE, NULL, 12, NULL);

@@ -59,12 +59,12 @@ typedef enum
 
 /*******************Global interrupt define************************/
 /*disable all interrupts*/
-#define DisableAllInterrupts()
+#define DisableAllInterrupts()     IfxCpu_disableInterrupts()
 								
 								
 
 /*enable all interrupts*/
-#define EnableAllInterrupts()
+#define EnableAllInterrupts()     IfxCpu_enableInterrupts()
 /***********************************************************/
 
 /***********************************************************/
