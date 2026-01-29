@@ -2,9 +2,9 @@
 #define __USER_CONFIG_H__
 
 //#include "Compilers.h"
+#include <drv/uart.h>
 #include "Cpu/Std/Platform_Types.h"
 #include <string.h>
-#include "uart.h"
 
 /************************UDS algthorim access config***************/
 #define ASSERT(xValue)\

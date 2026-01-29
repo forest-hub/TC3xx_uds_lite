@@ -41,6 +41,11 @@
  * \documents https://www.infineon.com/aurix-expert-training/TC37A_iLLD_UM_1_0_1_17_0.chm
  * \lastUpdated 2024-03-21
  *********************************************************************************************************************/
+#include <drv/can.h>
+#include <drv/gpio.h>
+#include <drv/pwm.h>
+#include <drv/uart.h>
+#include <drv/uart.h>
 #include "Ifx_Types.h"
 #include "IfxGeth_Eth.h"
 #include "IfxCpu.h"
@@ -48,15 +53,10 @@
 #include "IfxScuWdt.h"
 #include "Ifx_Lwip.h"
 #include "App_Config.h"
-#include <gpio.h>
-#include "uart.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "pwm.h"
 #include "uds_app.h"
 #include "can_if.h"
-#include "can.h"
-#include "uart.h"
 uint8 g_currentCanFdUseCase = 0;
 
 stParam_t   tboxParam;

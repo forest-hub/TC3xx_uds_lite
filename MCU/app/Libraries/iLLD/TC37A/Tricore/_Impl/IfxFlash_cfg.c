@@ -231,7 +231,7 @@ IFX_CONST IfxFlash_flashSector IfxFlash_dFlashTableUcbLog[IFXFLASH_DFLASH_NUM_UC
 };
 
 IFX_CONST IfxFlash_flashSector IfxFlash_pFlashTableLog[IFXFLASH_PFLASH_NUM_LOG_SECTORS] = {
-    {0xA0000000, 0xA0003FFF},      //   PF0 S0
+    {0xA0000000, 0xA0003FFF},      // PF0 S0
     {0xA0004000, 0xA0007FFF},      //	PF0 S1
     {0xA0008000, 0xA000BFFF},      //	PF0 S2
     {0xA000C000, 0xA000FFFF},      //	PF0 S3

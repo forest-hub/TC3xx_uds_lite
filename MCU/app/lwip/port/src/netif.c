@@ -81,7 +81,7 @@
  * something that better describes your network interface.
  */
 
-#include <Dp83825i.h>
+#include <drv/Dp83825i.h>
 #include "lwip/opt.h"
 #include "lwip/def.h"
 #include "lwip/mem.h"

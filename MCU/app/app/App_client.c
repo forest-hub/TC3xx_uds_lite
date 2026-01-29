@@ -1,4 +1,5 @@
-#include <uart.h>
+#include <drv/Dp83825i.h>
+#include <drv/uart.h>
 #include "lwip/sockets.h"
 #include "lwip/inet.h"
 #include "FreeRTOS.h"
@@ -8,7 +9,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include "App_Config.h"
-#include "Dp83825i.h"
 // Server configuration (unchanged)
 #define SERVER_IP       "192.168.60.130"
 #define SERVER_PORT     9060

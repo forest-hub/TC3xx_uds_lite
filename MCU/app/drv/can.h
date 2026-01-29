@@ -32,11 +32,11 @@
 /*-----------------------------------------------------Includes------------------------------------------------------*/
 /*********************************************************************************************************************/
 
+#include <drv/stm.h>
 #include "Ifx_Types.h"
 #include "IfxCan_Can.h"
 #include "IfxCan.h"
 #include "IfxPort.h"
-#include "stm.h"
 /*********************************************************************************************************************/
 /*------------------------------------------------------Macros-------------------------------------------------------*/
 /*********************************************************************************************************************/
@@ -267,12 +267,12 @@ typedef enum
 /*********************************************************************************************************************/
 /*-----------------------------------------------Function Prototypes-------------------------------------------------*/
 /*********************************************************************************************************************/
-void initMcmcan(uint8 nodeid,canInitConfigType *canInitConfig);
+void  initMcmcan(uint8 nodeid,canInitConfigType *canInitConfig);
 uint8 transmitCanMessage(uint8 nodeid,uint32 messageID,uint32 *data,IfxCan_DataLengthCode len,IfxCan_MessageIdLength extended,IfxCan_FrameMode mode);
 void  Can_Node_enableInterrupt(uint8 nodeid, IfxCan_Interrupt interrupt);
 void  Can_Node_disenableInterrupt(uint8 nodeid ,IfxCan_Interrupt interrupt);
-void canModeChaerge(uint8 nodeid,uint8  mode);
-void canBaudrateChaerge(uint8 nodeid,canChangeConfigType  *Config);
-void usr_can_BaudrateChange(IfxCan_Can_Node *node,canChangeConfigType *canChangeConfig);
-void usr_Can_readMessage(IfxCan_Can_Node *node, uint8 readFromRxFifo, devcanfdRXringbuff *buff);
+void  canModeChaerge(uint8 nodeid,uint8  mode);
+void  canBaudrateChaerge(uint8 nodeid,canChangeConfigType  *Config);
+void  usr_can_BaudrateChange(IfxCan_Can_Node *node,canChangeConfigType *canChangeConfig);
+void  usr_Can_readMessage(IfxCan_Can_Node *node, uint8 readFromRxFifo, devcanfdRXringbuff *buff);
 #endif /* MCMCAN_FD_H_ */

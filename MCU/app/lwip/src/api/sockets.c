@@ -39,7 +39,7 @@
 
 #include "lwip/opt.h"
 #if LWIP_SOCKET /* don't build if not configured for use in lwipopts.h */
-#include "uart.h"
+#include <drv/uart.h>
 #include "lwip/sockets.h"
 #include "lwip/priv/sockets_priv.h"
 #include "lwip/api.h"

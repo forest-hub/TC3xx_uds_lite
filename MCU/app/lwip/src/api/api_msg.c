@@ -36,8 +36,8 @@
  *
  */
 
+#include <drv/uart.h>
 #include "lwip/opt.h"
-#include "uart.h"
 #if LWIP_NETCONN /* don't build if not configured for use in lwipopts.h */
 
 #include "lwip/priv/api_msg.h"

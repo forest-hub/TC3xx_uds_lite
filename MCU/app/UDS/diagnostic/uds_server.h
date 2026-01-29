@@ -1,5 +1,5 @@
-#ifndef __UDS_APP_CFG_H__
-#define __UDS_APP_CFG_H__
+#ifndef __UDS_SERVER_H__
+#define __UDS_SERVER_H__
 
 /*********************Include headers************************/
 #include "user_config.h"
@@ -106,7 +106,7 @@ typedef struct
 #define RSE (0x24u)          /*request  sequence error*/
 #define ROOR (0x31u)         /*request out of range*/
 #define SAD (0x33u)          /*security access denied*/
-#define IK (0x35u)           /*invalid key*/
+#define IK  (0x35u)           /*invalid key*/
 #define ENOA (0x36u)         /*exceed number of attempts*/
 #define RCRRP (0x78u)        /*request correctly received-response pending*/
 
@@ -158,9 +158,7 @@ tUDSService* UDS_GetUDSServiceInfo(uint8 *m_pSupServItem);
  uint8 UDS_IsRxUdsMsg(void);
 
 /*set negative erro code*/
- void UDS_SetNegativeErroCode(const uint8 i_UDSServiceNum,
-                                const uint8 i_erroCode,
-                                tUdsAppMsgInfo *m_pstPDUMsg);
+ void UDS_SetNegativeErroCode(const uint8 i_UDSServiceNum, const uint8 i_erroCode, tUdsAppMsgInfo *m_pstPDUMsg);
 
 /*uds time control*/
  void UDS_SystemTickCtl(void);
@@ -168,7 +166,7 @@ tUDSService* UDS_GetUDSServiceInfo(uint8 *m_pSupServItem);
 /*write message to host basd on UDS for request enter bootloader mode*/
  boolean UDS_TxMsgToHost(void);
 
-
+ void  UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint8));
 #endif /*__UDS_APP_CFG_H__*/
 /***************************End file********************************/
 

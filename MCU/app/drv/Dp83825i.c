@@ -46,7 +46,7 @@
 /*----------------------------------Includes----------------------------------*/
 /******************************************************************************/
 
-#include "Dp83825i.h"
+#include <drv/Dp83825i.h>
 /******************************************************************************/
 /*----------------------------------Macros------------------------------------*/
 /******************************************************************************/
@@ -133,7 +133,7 @@ void IfxGet_Eth_Phy_Dp83825i_reset(void) {
     // reset PHY
     // first we test to readout the reset bit to avoid timing issues (phy not yet ready)
     uint32 value;
-    uint32 uiTimeout = 2000;
+    uint32 uiTimeout = 20000;
     do
     {
         GETH_MAC_MDIO_ADDRESS.U = (0 << 21) | (0 << 16) | (0 << 8) | (3 << 2) | (1 << 0);
@@ -153,7 +153,7 @@ void IfxGet_Eth_Phy_Dp83825i_reset(void) {
             GETH_MAC_MDIO_ADDRESS.U = (0 << 21) | (0 << 16) | (0 << 8) | (3 << 2) | (1 << 0);
             IFXGETH_PHY_DP83825I_WAIT_MDIO_READY()
             value = GETH_MAC_MDIO_DATA.U;
-        } while (value & 0x8000);  // wait for reset to finish
+        } while (value & 0x80000);  // wait for reset to finish
 
         // get ID
         GETH_MAC_MDIO_ADDRESS.U = (0 << 21) | (2 << 16) | (0 << 8) | (3 << 2) | (1 << 0);
@@ -181,7 +181,7 @@ uint32 IfxGeth_Eth_Phy_Dp83825i_init(void)
     do
     {
         IfxGeth_Eth_Phy_Dp83825i_read_mdio_reg(0, IFXGETH_PHY_DP83825I_MDIO_BMCR, &value);
-    } while (value & 0x8000);                                                      // wait for reset to finish
+    } while (value & 0x80000);                                                      // wait for reset to finish
 
     /* Start Phy activity */
     IfxGeth_Eth_Phy_Dp83825i_write_mdio_reg(0, IFXGETH_PHY_DP83825I_MDIO_BMCR, 0x1200);    // enable auto-negotiation, restart auto-negotiation

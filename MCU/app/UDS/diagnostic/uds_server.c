@@ -32,11 +32,9 @@ static tUdsInfo gs_stUdsInfo =
     DEFALUT_SESSION,
     ERRO_REQUEST_ID,
     NONE_SECURITY,
-    5000u,
-    5000u,
+    0u,
+    0u,
 };
-
-
 
 /*get UDS s3 watermark timer. return s3 * S3_TIMER_WATERMARK_PERCENT / 100*/
 uint32 UDS_GetUDSS3WatermarkTimerMs(void)
@@ -58,50 +56,29 @@ static tJumpAppDelayTimeInfo gs_stJumpAPPDelayTimeInfo = {FALSE, 0u};
 
 /**********************UDS Information Static function************************/
 static uint16 UDS_GetUdsS3ServerTime(void);
-
-static void UDS_SubUdsS3ServerTime(uint16 i_SubTime);
-
+static void   UDS_SubUdsS3ServerTime(uint16 i_SubTime);
 static uint16 UDS_GetUdsSecurityReqLockTime(void);
-
-static void UDS_SubUdsSecurityReqLockTime(uint16 i_SubTime);
-
+static void   UDS_SubUdsSecurityReqLockTime(uint16 i_SubTime);
 /**********************UDS service configuration and function************************/
 
 /**********************UDS service correlation subfunction define************************/
-/*app memcopy*/
-static void UDS_AppMemcopy(const void *i_pvSource, const uint8 i_copyLen, void *o_pvDest);
-
-/*app memset*/
-static void UDS_AppMemset(const uint8 i_setValue, const uint16 i_len, void *m_pvSource);
-
-/*Is get version?*/
 static uint8 UDS_IsGetVersion(const tUdsAppMsgInfo *m_pstPDUMsg);
+static void  UDS_TXConfrimMsgCallback(uint8 i_status);
 
-/*transmitted confirm message callback*/
-static void UDS_TXConfrimMsgCallback(uint8 i_status);
-
-/* When do uds service need more time, need call the funciton */
-static void UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint8));
-
-/*do reset mcu*/
-static void UDS_DoResetMCU(uint8 i_Txstatus);
+static void  UDS_DoResetMCU(uint8 i_Txstatus);
 boolean UDS_ALG_HAL_GetRandom(const uint32 i_needRandomDataLen, uint8 *o_pRandomDataBuf);
 /******************************UDS service main function define***************************************/
-/*dig session*/
 static void UDS_DigSession_0x10(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 static void UDS_SecurityAccess_0x27(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
-/*control DTC setting*/
 static void UDS_ControlDTCSetting_0x85(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
-
-/*communication control*/
+static void UDS_WriteDataByIdentifier_0x2E(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 static void UDS_CommunicationControl_0x28(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
-
-/*routine control*/
+static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
+static void UDS_TransferData_0x36(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
+static void UDS_RequestTransferExit_0x37(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 static void UDS_RoutineControl_0x31(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 static uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,const uint8 *i_pTxSeed,const uint8 KeyLen);
-/*Tester present service*/
 static void UDS_TesterPresent_0x3E(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
-/*reset ECU*/
 static void UDS_ResetECU_0x11(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 /***********************UDS service Static Global value************************/
 /*dig serverice config table*/
@@ -124,49 +101,84 @@ const static tUDSService gs_astUDSService[] =
         UDS_ResetECU_0x11
     },
     /*security access*/
-      {
+    {
           0x27u,
           PROGRAM_SESSION,
           SUPPORT_PHYSICAL_ADDR,
           NONE_SECURITY,
           UDS_SecurityAccess_0x27
-      },
+    },
 
     /*communication control*/
-    {
+   {
         0x28u,
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
         UDS_CommunicationControl_0x28
-    },
+   },
 
     /*control DTC setting*/
-    {
+   {
         0x85u,
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
         UDS_ControlDTCSetting_0x85
-    },
+   },
+
+    /*write data by identifier*/
+   {
+        0x2Eu,
+        PROGRAM_SESSION,
+        SUPPORT_PHYSICAL_ADDR,
+        SECURITY_LEVEL_1,
+        UDS_WriteDataByIdentifier_0x2E
+   },
 
     /*routine control*/
-    {
+   {
         0x31u,
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
         UDS_RoutineControl_0x31
-    },
+   },
 
-    /*routine control*/
-    {
+    /*request download data */
+   {
+        0x34u,
+        PROGRAM_SESSION,
+        SUPPORT_PHYSICAL_ADDR,
+        SECURITY_LEVEL_1,
+        UDS_RequestDownload_0x34
+   },
+
+    /*transter data*/
+   {
+        0x36u,
+        PROGRAM_SESSION,
+        SUPPORT_PHYSICAL_ADDR,
+        SECURITY_LEVEL_1,
+        UDS_TransferData_0x36
+   },
+    /*request exit transfer data*/
+   {
+        0x37u,
+        PROGRAM_SESSION,
+        SUPPORT_PHYSICAL_ADDR,
+        SECURITY_LEVEL_1,
+        UDS_RequestTransferExit_0x37
+   },
+
+    /*diagnose mode control*/
+   {
         0x3Eu,
         DEFALUT_SESSION | PROGRAM_SESSION | EXTEND_SESSION,
         SUPPORT_PHYSICAL_ADDR | SUPPORT_FUNCTION_ADDR,
         NONE_SECURITY,
         UDS_TesterPresent_0x3E
-    },
+   },
 };
 
 
@@ -256,7 +268,8 @@ static void UDS_DigSession_0x10(struct UDSServiceInfo* i_pstUDSServiceInfo, tUds
 
     case 0x02u :  /*program mode*/
     case 0x82u :
-        //进入0x10 编程会话，会调用重启MCU,并把升级标记 写进flash,然后看门狗重启MCU,MCU重启起来会发0x11的肯定响应。
+        //进入0x10 编程会话，会调用重启MCU,并把升级标记 写进flash,然后看门狗重启MCU,MCU重启起来进入boot
+        //会发0x10 编程会话的肯定响应。
         //我们这里不这么干，我们有其他事要做，不止升级
         UDS_SetCurrentSession(PROGRAM_SESSION);
 
@@ -325,10 +338,11 @@ static void UDS_SecurityAccess_0x27(struct UDSServiceInfo* i_pstUDSServiceInfo, 
         case 0x01u :
              //调试用
              m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+             m_pstPDUMsg->aDataBuf[1u]=requestSubfunction;
              m_pstPDUMsg->xDataLen = 4u;
              m_pstPDUMsg->aDataBuf[2u]=0x11;
              m_pstPDUMsg->aDataBuf[3u]=0x12;
-             UDS_AppMemcopy(&m_pstPDUMsg->aDataBuf[2u], 2, s_aSeedBuf);
+             memcpy(&m_pstPDUMsg->aDataBuf[2u], s_aSeedBuf, 2);
             /*get random and put in m_pstPDUMsg->aDataBuf[2u] ~ 17u byte*/
            // ret = UDS_ALG_HAL_GetRandom(AES_SEED_LEN, s_aSeedBuf);
 
@@ -406,6 +420,30 @@ static void UDS_ControlDTCSetting_0x85(struct UDSServiceInfo* i_pstUDSServiceInf
     }
 }
 
+/*write data by identifier*/
+static void UDS_WriteDataByIdentifier_0x2E(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+{
+    ASSERT(NULL_PTR == m_pstPDUMsg);
+    ASSERT(NULL_PTR == i_pstUDSServiceInfo);
+
+    /*Is write fingerprint id right?*/
+    if(TRUE )//== UDS_IsWriteFingerprintRight(m_pstPDUMsg))
+    {
+        /*do write fingerprint*/
+        //Flash_SavePrintfigner(&m_pstPDUMsg->aDataBuf[3u], (m_pstPDUMsg->xDataLen - 3u));
+
+        m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+        m_pstPDUMsg->aDataBuf[1u] = 0xF1u;
+        m_pstPDUMsg->aDataBuf[2u] = 0x5Au;
+        m_pstPDUMsg->xDataLen = 3u;
+    }
+    else
+    {
+        /*don't have this routine control ID*/
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, SFNS, m_pstPDUMsg);
+    }
+}
+
 /*communication control*/
 static void UDS_CommunicationControl_0x28(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
@@ -418,7 +456,7 @@ static void UDS_CommunicationControl_0x28(struct UDSServiceInfo* i_pstUDSService
 
     switch(requestSubfunction)
     {
-    case 0x0u :
+    case 0x0u  :
     case 0x03u :
         m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
         m_pstPDUMsg->aDataBuf[1u] = requestSubfunction;
@@ -515,6 +553,174 @@ static void UDS_TesterPresent_0x3E(struct UDSServiceInfo* i_pstUDSServiceInfo, t
             break;
     }
 }
+
+/*request download*/
+static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+{
+    uint8 Index = 0u;
+    uint8 Ret = TRUE;
+
+    ASSERT(NULL_PTR == m_pstPDUMsg);
+    ASSERT(NULL_PTR == i_pstUDSServiceInfo);
+
+    if(m_pstPDUMsg->xDataLen < (DOWLOAD_DATA_ADDR_LEN + DOWLOAD_DATA_LEN + 1u + 2u))
+    {
+        Ret = FALSE;
+
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, IMLOIF, m_pstPDUMsg);
+    }
+
+    if(TRUE == Ret)
+    {
+        /*get data addr */
+      //  gs_stDowloadDataInfo.startAddr = 0u;
+      //  for(Index = 0u; Index < DOWLOAD_DATA_ADDR_LEN; Index++)
+      //  {
+      //      gs_stDowloadDataInfo.startAddr <<= 8u;
+            /* 3u = N_PCI(1) + SID34(1) + dataFormatldentifier(1) */
+      //      gs_stDowloadDataInfo.startAddr |= m_pstPDUMsg->aDataBuf[Index + 3u];
+     //   }
+
+        /*get data len*/
+     //   gs_stDowloadDataInfo.dataLen = 0u;
+      //  for(Index = 0u; Index < DOWLOAD_DATA_LEN; Index++)
+    //    {
+    //        gs_stDowloadDataInfo.dataLen <<= 8u;
+     //       gs_stDowloadDataInfo.dataLen |= m_pstPDUMsg->aDataBuf[Index + 7u];
+     //   }
+    }
+
+    /*Is download data  addr  and len valid?*/
+  //  if(((TRUE != UDS_IsDownloadDataAddrValid(gs_stDowloadDataInfo.startAddr, gs_stDowloadDataInfo.dataLen))) ||
+  //      (TRUE != Ret))
+  //  {
+  //      UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, ROOR, m_pstPDUMsg);
+
+  //      Ret = FALSE;
+  //  }
+
+  //  if(TRUE == Ret)
+  //  {
+        /*set wait transfer data step(0x34 service)*/
+   //     Flash_SetNextDownloadStep(FL_TRANSFER_STEP);
+
+        /*save received program addr and data len*/
+   //     Flash_SaveDownloadDataInfo(gs_stDowloadDataInfo.startAddr, gs_stDowloadDataInfo.dataLen);
+
+        /*fill postive message*/
+   //     m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+   //     m_pstPDUMsg->aDataBuf[1u] = 0x10u;
+   //     m_pstPDUMsg->aDataBuf[2u] = 0x80u;
+   //     m_pstPDUMsg->xDataLen = 3u;
+
+        /*set wait received block number*/
+    //    gs_RxBlockNum = 1u;
+ //   }
+ //   else
+  //  {
+   //     Flash_InitDowloadInfo();
+
+        /*set request transfer data step(0x34 service)*/
+    //    Flash_SetNextDownloadStep(FL_REQUEST_STEP);
+  //  }
+}
+
+/*transfer data*/
+static void UDS_TransferData_0x36(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+{
+    uint8 Ret = TRUE;
+
+    ASSERT(NULL_PTR == m_pstPDUMsg);
+    ASSERT(NULL_PTR == i_pstUDSServiceInfo);
+
+    /*request sequence erro*/
+  //  if((FL_TRANSFER_STEP != Flash_GetCurDownloadStep()) && (TRUE == Ret))
+  //  {
+  //      Ret = FALSE;
+
+   //     UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
+   // }
+
+  //  if((gs_RxBlockNum != m_pstPDUMsg->aDataBuf[1u]) && (TRUE == Ret))
+  //  {
+        Ret = FALSE;
+//
+   //     /*received data is not wait block number*/
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
+  //  }
+
+   // gs_RxBlockNum++;
+
+    /*copy flash data in flash area*/
+  //  if((TRUE != Flash_ProgramRegion(gs_stDowloadDataInfo.startAddr,
+   //                                 &m_pstPDUMsg->aDataBuf[2u],
+   //                                 (m_pstPDUMsg->xDataLen - 2u))) && (TRUE == Ret))
+   // {
+   //     Ret = FALSE;
+
+        /*saved data and information failled!*/
+    //    UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, CNC, m_pstPDUMsg);
+   // }
+  //  else
+  //  {
+   //     gs_stDowloadDataInfo.startAddr += (m_pstPDUMsg->xDataLen - 2u);
+  //      gs_stDowloadDataInfo.dataLen -= (m_pstPDUMsg->xDataLen - 2u);
+  //  }
+
+    /*received all data*/
+  //  if((0u == gs_stDowloadDataInfo.dataLen) && (TRUE == Ret))
+  //  {
+   //     gs_RxBlockNum = 0u;
+
+        /*set wait exit transfer step(0x37 service)*/
+   //     Flash_SetNextDownloadStep(FL_EXIT_TRANSFER_STEP);
+   // }
+
+  //  if(TRUE == Ret)
+   // {
+        /*tranmitted postive message.*/
+   //     m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+    //    m_pstPDUMsg->xDataLen = 4u;
+   // }
+   // else
+   // {
+   //     Flash_InitDowloadInfo();
+
+        /*set request transfer data step(0x34 service)*/
+    //    Flash_SetNextDownloadStep(FL_REQUEST_STEP);
+
+    //    gs_RxBlockNum = 0u;
+   // }
+}
+/*request transfer exit*/
+static void UDS_RequestTransferExit_0x37(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
+{
+    uint8 Ret = TRUE;
+
+    ASSERT(NULL_PTR == m_pstPDUMsg);
+    ASSERT(NULL_PTR == i_pstUDSServiceInfo);
+
+ //   if(FL_EXIT_TRANSFER_STEP != Flash_GetCurDownloadStep())
+  //  {
+  //      Ret = FALSE;
+
+  //      UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
+  //  }
+
+  //  if(TRUE == Ret)
+  //  {
+  //      Flash_SetNextDownloadStep(FL_CHECKSUM_STEP);
+
+        /*tranmitted postive message.*/
+   //     m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+   //     m_pstPDUMsg->xDataLen = 1u;
+  //  }
+   // else
+  //  {
+  //      Flash_InitDowloadInfo();
+   // }
+}
+
 
 /*do reset mcu*/
 static void UDS_DoResetMCU(uint8 Txstatus)
@@ -678,24 +884,6 @@ uint8 UDS_IsCurSecurityLevelRequest(uint8 i_securityLevel)
     return status;
 }
 
-/**********************UDS service correlation subfunction realizing************************/
-/*app memcopy*/
-static void UDS_AppMemcopy(const void *i_pvSource, const uint8 i_copyLen, void *o_pvDest)
-{
-    ASSERT(NULL_PTR == i_pvSource);
-    ASSERT(NULL_PTR == o_pvDest);
-
-    memcpy(o_pvDest, i_pvSource, i_copyLen);
-}
-
-/*app memset*/
-static void UDS_AppMemset(const uint8 i_setValue, const uint16 i_len, void *m_pvSource)
-{
-    ASSERT(NULL_PTR == m_pvSource);
-
-    memset(m_pvSource, i_setValue, i_len);
-}
-
 /*check routine control right?*/
 static uint8 UDS_IsCheckUDS_RoutineControl_0x31Right(const tCheckRoutineCtlInfo i_eCheckRoutineCtlId,
                                         const tUdsAppMsgInfo *m_pstPDUMsg)
@@ -723,6 +911,7 @@ static uint8 UDS_IsCheckUDS_RoutineControl_0x31Right(const tCheckRoutineCtlInfo 
 
     if((NULL_PTR == pDestRoutineCltId) || (m_pstPDUMsg->xDataLen < FindCnt))
     {
+
         return FALSE;
     }
 
@@ -766,7 +955,7 @@ static void RequestMoreTimeCallback(uint8 i_TxStatus)
     }
 }
 
-static void UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint8))
+void UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint8))
 {
     tUdsAppMsgInfo stMsgBuf = {0};
 

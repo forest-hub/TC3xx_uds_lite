@@ -47,16 +47,16 @@
 /******************************************************************************/
 #include <Cpu/Std/Ifx_Types.h>
 #include <Cpu/Std/IfxCpu.h>
-#include <Dp83825i.h>
+#include <drv/Dp83825i.h>
+#include <drv/stm.h>
+#include <drv/uart.h>
 #include "IfxGeth_Eth.h"
 #include "Ifx_Lwip.h"
 #include "lwipopts.h"
 #include "Ifx_Netif.h"
 #include <string.h>
 #include <stdarg.h>
-#include <uart.h>
 #include "Ifx_Types.h"
-#include "stm.h"
 /******************************************************************************/
 /*-----------------------------------Macros-----------------------------------*/
 /******************************************************************************/

@@ -33,8 +33,8 @@ When you update, please do not forgot to del me and add your info at here.
 </pre>
  */
 
-#include <utils/AES.h>
-#include <utils/UDS_alg_hal.h>
+#include <AES.h>
+#include <UDS_alg_hal.h>
 
 /*******************************************************************************
  * User Include
