@@ -29,6 +29,7 @@
 #define FLASH_H_
 #include "Ifx_Types.h"
 #include "IfxFlash.h"
+#include "fls_app.h"
 
 typedef struct
 {
@@ -61,6 +62,49 @@ typedef struct
     int             sectorNum;
     int             sectorSize;
 } FlashOpera_t;
+
+
+typedef struct
+{
+    /*flash programming successfull? If programming successfull, the value set TRUE, else set FALSE*/
+    uint8 isFlashProgramSuccessfull;
+
+    /*Is erase flash successfull? If erased flash successfull, set the TRUE, else set the FALSE.*/
+    uint8 isFlashErasedSuccessfull;
+
+    /*Is Flash struct data valid? If writen set the value is TRUE, else set the valid FALSE*/
+    uint8 isFlashStructValid;
+
+    /*indicate app Counter. Before download. */
+    uint8 appCnt;
+
+    /* flag if fingerprint buffer */
+    uint8 aFingerPrint[FL_FINGER_PRINT_LENGTH];
+
+    /*reset handler length*/
+    uint32 appStartAddrLen;
+
+    /*app Start address -- reset handler*/
+    uint32 appStartAddr;
+
+    /*count CRC*/
+    uint32 crc;
+}tAppFlashStatus;
+
+typedef boolean (*tpfFlashInit)(void);
+typedef void (*tpfFlashDeInit)(void);
+typedef boolean (*tpfEraseSecotr)(const uint32, const uint32);
+typedef boolean (*tpfProgramData)(const uint32, const uint8 *, const uint32);
+typedef boolean (*tpfReadFlashData)(const uint32, const uint32, uint8 *);
+
+typedef struct
+{
+    tpfFlashInit pfFlashInit;
+    tpfEraseSecotr pfEraserSecotr;     /*erase sector*/
+    tpfProgramData pfProgramData;      /*program data*/
+    tpfReadFlashData pfReadFlashData;  /*read flash data*/
+    tpfFlashDeInit pfFlashDeinit;
+}tFlashOperateAPI;
 /*********************************************************************************************************************/
 /*------------------------------------------------Function Prototypes------------------------------------------------*/
 /*********************************************************************************************************************/

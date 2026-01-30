@@ -5,6 +5,7 @@
 #include "user_config.h"
 #include "can_tp.h"
 #include "can_if.h"
+#include "uds_cfc.h"
 /**********************************************************/
 
 /****************************Bootloader version***************************/
@@ -13,14 +14,7 @@
 #define APP_HW_VERSION {APP_TYPE, 0x01, 0x0, 0x00}
 /********************************************************************/
 
-typedef struct
-{
-    uint32 xUdsId;
-    uint32 xDataLen;
-    uint8 aDataBuf[150u];
-    /*tx message call back*/
-    void (*pfUDSTxMsgServiceCallBack)(uint8);
-} tUdsAppMsgInfo;
+
 
 typedef struct UDSServiceInfo
 {

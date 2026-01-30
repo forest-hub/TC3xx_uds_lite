@@ -1,5 +1,5 @@
 #include "uds_server.h"
-
+#include "uds_cfc.h"
 
 #define DOWLOAD_DATA_ADDR_LEN (4u)      /*dowload data addr len*/
 #define DOWLOAD_DATA_LEN (4u)           /*dowload data len*/
@@ -482,46 +482,96 @@ static void UDS_CommunicationControl_0x28(struct UDSServiceInfo* i_pstUDSService
 /*routine control*/
 static void UDS_RoutineControl_0x31(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
-    uint8 ret = FALSE;
-    uint32 ReceivedCrc = 0u;
-    uint8 aSWVersion[] = APP_SW_VERSION;
-    uint8 aHWVersion[] = APP_HW_VERSION;
-    uint8 offset = 0u;
+       uint8 ret = FALSE;
+       uint32 ReceivedCrc = 0u;
+       uint8 aSWVersion[] = BOOTLOADER_SW_VERSION;
+       uint8 aHWVersion[] = BOOTLOADER_HW_VERSION;
+       uint32 offset = 0u;
 
-    ASSERT(NULL_PTR == m_pstPDUMsg);
-    ASSERT(NULL_PTR == i_pstUDSServiceInfo);
+       ASSERT(NULL_PTR == m_pstPDUMsg);
+       ASSERT(NULL_PTR == i_pstUDSServiceInfo);
 
-    UDS_RestartS3Server();
+       UDS_RestartS3Server();
 
-    /*Is get version*/
-    if(TRUE == UDS_IsGetVersion(m_pstPDUMsg))
-    {
-        m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
-        m_pstPDUMsg->xDataLen = 4u;
+       /*Is erase memory routine control?*/
+       if(TRUE == UDS_IsEraseMemoryRoutineControl(m_pstPDUMsg))
+       {
+           /*request client timeout time*/
+           UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RCRRP, m_pstPDUMsg);
 
-        /*fill sofware information*/
-        offset = m_pstPDUMsg->xDataLen;
-        m_pstPDUMsg->aDataBuf[offset] = sizeof(aSWVersion);
-        offset += 1u;
+           m_pstPDUMsg->pfUDSTxMsgServiceCallBack = &UDS_DoEraseFlash;
+       }
+       /*Is check sum routine control?*/
+       else if(TRUE == UDS_IsCheckSumRoutineControl(m_pstPDUMsg))
+       {
+           ReceivedCrc = m_pstPDUMsg->aDataBuf[4u];
+           ReceivedCrc = (ReceivedCrc << 8u) | m_pstPDUMsg->aDataBuf[5u];
+           ReceivedCrc = (ReceivedCrc << 8u) | m_pstPDUMsg->aDataBuf[6u];
+           ReceivedCrc = (ReceivedCrc << 8u) | m_pstPDUMsg->aDataBuf[7u];
+           Flash_SavedReceivedCheckSumCrc(ReceivedCrc);
 
-        memcpy(&m_pstPDUMsg->aDataBuf[offset], aSWVersion, sizeof(aSWVersion));
-        offset += sizeof(aSWVersion);
+           /*request client timeout time*/
+           UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RCRRP, m_pstPDUMsg);
 
-        /*fill hardware version*/
-        m_pstPDUMsg->aDataBuf[offset] = sizeof(aHWVersion);
-        offset += 1u;
+           m_pstPDUMsg->pfUDSTxMsgServiceCallBack = &UDS_DoCheckSum;
+       }
 
-        memcpy(&m_pstPDUMsg->aDataBuf[offset], aHWVersion, sizeof(aHWVersion));
-        offset += sizeof(aHWVersion);
+       /*Is check programming dependency?*/
+       else if(TRUE == UDS_IsCheckProgrammingDependency(m_pstPDUMsg))
+       {
+           /*Fill response*/
+           m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+           m_pstPDUMsg->xDataLen = 5u;
 
-        m_pstPDUMsg->xDataLen = offset;
-    }
+           /*write application information in flash.*/
+           ret = Flash_WriteFlashAppInfo();
+           if(TRUE == ret)
+           {
+               /*do check programming dependency*/
+               ret = UDS_DoCheckProgrammingDependency();
+           }
 
-    else
-    {
-        /*don't have this routine control ID*/
-        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, SFNS, m_pstPDUMsg);
-    }
+           if(TRUE == ret)
+           {
+               m_pstPDUMsg->aDataBuf[4u] = 0u;
+           }
+           else
+           {
+               m_pstPDUMsg->aDataBuf[4u] = 1u;
+
+               print("%s: Write APP info or check dependency failed!\n", __func__);
+           }
+       }
+
+       /*Is get version*/
+       else if(TRUE == UDS_IsGetVersion(m_pstPDUMsg))
+       {
+           m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+           m_pstPDUMsg->xDataLen = 4u;
+
+           /*fill sofware information*/
+           offset = m_pstPDUMsg->xDataLen;
+           m_pstPDUMsg->aDataBuf[offset] = sizeof(aSWVersion);
+           offset += 1u;
+
+           memcpy(&m_pstPDUMsg->aDataBuf[offset], aSWVersion, sizeof(aSWVersion));
+           offset += sizeof(aSWVersion);
+
+           /*fill hardware version*/
+           m_pstPDUMsg->aDataBuf[offset] = sizeof(aHWVersion);
+           offset += 1u;
+
+           memcpy(&m_pstPDUMsg->aDataBuf[offset], aHWVersion, sizeof(aHWVersion));
+           offset += sizeof(aHWVersion);
+
+           m_pstPDUMsg->xDataLen = offset;
+       }
+
+       else
+       {
+           /*don't have this routine control ID*/
+           UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, SFNS, m_pstPDUMsg);
+       }
 }
 
 /*Tester present service*/

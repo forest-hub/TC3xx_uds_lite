@@ -44,8 +44,38 @@
 #include "fl_cfc.h"
 #include "fls_app.h"
 
-static FL_DownloadStateType FldownloadStatus;
+   tFlsDownloadStateType gs_stFlashDownloadInfo;
+   tAppFlashStatus       gs_stAppFlashStatus;
 
+
+
+
+#define Flash_IsFlashEraseSuccessful() (gs_stAppFlashStatus.isFlashErasedSuccessfull)
+#define Flash_IsFlashProgramSuccessful() (gs_stAppFlashStatus.isFlashProgramSuccessfull)
+#define Flash_IsFlashStructValid() (gs_stAppFlashStatus.isFlashStructValid)
+#define Flash_IsFlashAppCrcEqualStorage(xCrc) ((gs_stAppFlashStatus.crc == xCrc) ? TRUE : FALSE)
+#define Flash_CreateAppStatusCrc(o_pCrc)   do{}while(0)  //do{\
+    CRC_HAL_CalculateCRCOnce((uint8 *)&gs_stAppFlashStatus, sizeof(gs_stAppFlashStatus) - 4u, o_pCrc);\
+}while(0u)
+#define Flash_SaveAppStatusCrc(xCrc)\
+do{\
+    gs_stAppFlashStatus.crc = xCrc;\
+}while(0u)
+
+/*create app status CRC and save*/
+#define Flash_CreateAndSaveAppStatusCrc(o_pCrc) \
+do{\
+    Flash_CreateAppStatusCrc(o_pCrc);\
+    Flash_SaveAppStatusCrc(*o_pCrc);\
+}while(0u)
+
+#define Flash_GetAppStatusPtr() (&gs_stAppFlashStatus)
+
+#define Flash_SaveAppResetHandlerAddr(resetHandlerAddr, resetHnadlerAddrLen) \
+do{\
+    gs_stAppFlashStatus.appStartAddr = resetHandlerAddr;\
+    gs_stAppFlashStatus.appStartAddrLen = resetHnadlerAddrLen;\
+}while(0u)
 
 const FL_BlockDescriptorType FL_BlkInfo[FL_NUM_LOGICAL_BLOCKS] =
 {
@@ -68,8 +98,374 @@ const FL_BlockDescriptorType FL_BlkInfo[FL_NUM_LOGICAL_BLOCKS] =
         {0xA05B0000U, 0xA05FFFFFU,0x4FFFFU,   (uint16)0xFFFFU}, /* 320K,spare */
 
 };
+/*flash driver config*/
+const BlockInfo_t gs_astFlashDriverBlock[] = {
+  {0x20000000u, 0x20000400u},
+};
+/*application can used space*/
+const BlockInfo_t gs_astBlockNumA[] = {
+  {0x00440000u, 0x005D4000},              /*App A information is in the block.*/
+};
+
+
+static boolean Flash_SaveAppInfoData(const uint32 i_appInfoDataStartAddr);
 
 
 
+/*set operate flash active job.*/
+void Flash_SetOperateFlashActiveJob(const tFlshJobModle i_activeJob,
+                                    const tpfResponse i_pfActiveFinshedCallBack,
+                                    const uint8 i_requestUDSSerID,
+                                    const tpfReuestMoreTime i_pfRequestMoreTimeCallback)
+{
+    gs_stFlashDownloadInfo.eActiveJob = i_activeJob;
+    gs_stFlashDownloadInfo.requestActiveJobUDSSerID = i_requestUDSSerID;
+    gs_stFlashDownloadInfo.pfRequestMoreTime = i_pfRequestMoreTimeCallback;
+    gs_stFlashDownloadInfo.pfActiveJobFinshedCallBack = i_pfActiveFinshedCallBack;
+}
+
+/*get reset handler information*/
+void FLASH_HAL_GetRestHanlderInfo(boolean *o_pIsEnableWriteResetHandlerInFlash, uint32 *o_pResetHanderOffset, uint32* o_pResetHandlerLength)
+{
+    ASSERT(NULL_PTR == o_pIsEnableWriteResetHandlerInFlash);
+    ASSERT(NULL_PTR == o_pResetHanderOffset);
+    ASSERT(NULL_PTR == o_pResetHandlerLength);
+
+    *o_pIsEnableWriteResetHandlerInFlash = EN_WRITE_RESET_HANDLER_IN_FLASH;
+    *o_pResetHanderOffset = APP_VECTOR_TABLE_OFFSET + RESET_HANDLE_OFFSET;
+    *o_pResetHandlerLength = RESET_HANDLER_ADDR_LEN;
+}
+
+tAPPType Flash_GetNewestAPPType(void)
+{
+#ifdef EN_SUPPORT_APP_B
+    uint32 appInfoStartAddr_A = 0u;
+    uint32 appInfoBlockSize_A = 0u;
+    tAPPType newestAPP = APP_A_TYPE;
+
+    tAppFlashStatus appAInfo;
+    tAppFlashStatus appBInfo;
+
+    uint32 appInfoStartAddr_B = 0u;
+    uint32 appInfoBlockSize_B = 0u;
+#endif /*#ifndef EN_SUPPORT_APP_B*/
+
+/*don't support APP B, so APP A is always newest.*/
+#ifndef EN_SUPPORT_APP_B
+    return APP_A_TYPE;
+#else
+
+    FLASH_HAL_GetAPPInfo(APP_A_TYPE, &appInfoStartAddr_A, &appInfoBlockSize_A);
+
+    FLASH_HAL_GetAPPInfo(APP_B_TYPE, &appInfoStartAddr_B, &appInfoBlockSize_B);
+
+#ifdef EN_APP_INFO_DATA_IN_NONE_FLASH
+    FLASH_HAL_ReadAPPInfoData(appInfoStartAddr_A, appInfoBlockSize_A, (uint8 *)&appAInfo);
+
+    FLASH_HAL_ReadAPPInfoData(appInfoStartAddr_B, appInfoBlockSize_B, (uint8 *)&appBInfo);
+#else
+    /*read APP A info*/
+    appAInfo = *(tAppFlashStatus *)appInfoStartAddr_A;
+
+    /*read APP B info*/
+    appBInfo = *(tAppFlashStatus *)appInfoStartAddr_B;
+#endif
+
+    newestAPP = Flash_DoCheckNewestAPPInfo(&appAInfo, &appBInfo);
+
+    return newestAPP;
+#endif /*#ifndef EN_SUPPORT_APP_B*/
+}
+
+/*Get old app info*/
+tAPPType Flash_GetOldAPPType(void)
+{
+#ifdef EN_SUPPORT_APP_B
+    uint32 appInfoStartAddr_A = 0u;
+    uint32 appInfoBlockSize_A = 0u;
+    tAPPType oldAPP = APP_A_TYPE;
+
+    uint32 appInfoStartAddr_B = 0u;
+    uint32 appInfoBlockSize_B = 0u;
+
+    tAPPType newestAPP = APP_A_TYPE;
+
+    tAppFlashStatus appAInfo;
+    tAppFlashStatus appBInfo;
+#endif /*#ifndef EN_SUPPORT_APP_B*/
+
+/*don't support APP B, so APP A is always old.*/
+#ifndef EN_SUPPORT_APP_B
+    return APP_A_TYPE;
+#else
+
+    FLASH_HAL_GetAPPInfo(APP_A_TYPE, &appInfoStartAddr_A, &appInfoBlockSize_A);
+
+    FLASH_HAL_GetAPPInfo(APP_B_TYPE, &appInfoStartAddr_B, &appInfoBlockSize_B);
+
+#ifdef EN_APP_INFO_DATA_IN_NONE_FLASH
+    FLASH_HAL_ReadAPPInfoData(appInfoStartAddr_A, appInfoBlockSize_A, (uint8 *)&appAInfo);
+
+    FLASH_HAL_ReadAPPInfoData(appInfoStartAddr_B, appInfoBlockSize_B, (uint8 *)&appBInfo);
+#else
+    /*read APP A info*/
+    appAInfo = *(tAppFlashStatus *)appInfoStartAddr_A;
+
+    /*read APP B info*/
+    appBInfo = *(tAppFlashStatus *)appInfoStartAddr_B;
+#endif
+
+    newestAPP = Flash_DoCheckNewestAPPInfo(&appAInfo, &appBInfo);
+    if(APP_A_TYPE == newestAPP)
+    {
+        oldAPP = APP_B_TYPE;
+    }
+    else if(APP_B_TYPE == newestAPP)
+    {
+        oldAPP = APP_A_TYPE;
+    }
+    else
+    {
+        /*here is set old APP type is default, just for error*/
+        oldAPP = APP_A_TYPE;
+    }
+
+    return oldAPP;
+#endif  /*#ifndef EN_SUPPORT_APP_B*/
+}
 
 
+/*write flash application information called by bootloader last step*/
+ uint8 Flash_WriteFlashAppInfo(void)
+ {
+     uint8 result = FALSE;
+     tAPPType oldAppType = APP_A_TYPE;
+     uint32 appInfoStartAddr = 0u;
+     uint32 appInfoLen = 0u;
+     uint32 crc = 0u;
+     tAppFlashStatus *pAppStatusPtr = NULL_PTR;
+
+     tAPPType newestAPPType = APP_A_TYPE;
+     uint32 newestAPPInfoStartAddr = 0u;
+     uint32 newestAPPInfoLen = 0u;
+     tAppFlashStatus *pstNewestAPPFlashStatus = NULL_PTR;
+     uint32 resetHandleAddr = 0u;
+
+     boolean bIsEnableWriteResetHandle = FALSE;
+     uint32 resetHandleOffset = 0u;
+     uint32 resetHandleLength = 0u;
+
+     Flash_CreateAndSaveAppStatusCrc(&crc);
+
+     oldAppType = Flash_GetOldAPPType();
+     newestAPPType = Flash_GetNewestAPPType();
+
+     result = FLASH_HAL_GetAPPInfo(oldAppType, &appInfoStartAddr, &appInfoLen);
+     if(TRUE == result)
+     {
+         /*write data information in flash*/
+         pAppStatusPtr = Flash_GetAppStatusPtr();
+
+         FLASH_HAL_GetRestHanlderInfo(&bIsEnableWriteResetHandle, &resetHandleOffset, &resetHandleLength);
+
+         /*update APP cnt*/
+         if(TRUE == FLASH_HAL_GetAPPInfo(newestAPPType, &newestAPPInfoStartAddr, &newestAPPInfoLen))
+         {
+             pstNewestAPPFlashStatus = (tAppFlashStatus *)newestAPPInfoStartAddr;
+
+             pAppStatusPtr->appCnt = pstNewestAPPFlashStatus->appCnt + 1u;
+             if(0xFFu == pAppStatusPtr->appCnt)
+             {
+                 pAppStatusPtr->appCnt = 0u;
+             }
+
+ #ifdef EN_APP_INFO_DATA_IN_NONE_FLASH
+             resetHandleAddr = resetHandleOffset;
+ #else
+             /*get app start address from flash. The address is the newest APP, because the APP info not write in flash, so the APP is old*/
+             resetHandleAddr = appInfoStartAddr + resetHandleOffset;
+ #endif
+             Flash_SaveAppResetHandlerAddr(*((uint32*)resetHandleAddr), resetHandleLength);
+
+             print("APP type =%X, APP address=0x%X\n", oldAppType, *((uint32*)resetHandleAddr));
+
+             crc = 0u;
+             Flash_CreateAndSaveAppStatusCrc(&crc);
+         }
+
+         if(NULL_PTR != pAppStatusPtr)
+         {
+             result = FALSE;
+
+ #ifdef EN_APP_INFO_DATA_IN_NONE_FLASH
+             /*APP information storage in EEPROM or DFLASH*/
+             result = FLASH_HAL_WriteAPPInfoData(appInfoStartAddr,
+                                                (uint8 *)pAppStatusPtr,
+                                                sizeof(tAppFlashStatus));
+ #else
+             if(NULL_PTR != gs_stFlashDownloadInfo.stFlashOperateAPI.pfProgramData)
+             {
+                 result = gs_stFlashDownloadInfo.stFlashOperateAPI.pfProgramData(appInfoStartAddr,
+                                                     (uint8 *)pAppStatusPtr,
+                                                     sizeof(tAppFlashStatus));
+             }
+ #endif
+         }
+         else
+         {
+             result = FALSE;
+         }
+     }
+
+     return result;
+ }
+
+ boolean FLASH_HAL_GetAPPInfo(const tAPPType i_appType, uint32 *o_pAppInfoStartAddr, uint32 *o_pBlockSize)
+ {
+     boolean result = FALSE;
+
+     if(APP_A_TYPE == i_appType)
+     {
+         *o_pAppInfoStartAddr = gs_astBlockNumA[0u].xBlockStartLogicalAddr;
+         *o_pBlockSize = gs_astBlockNumA[0u].xBlockEndLogicalAddr - gs_astBlockNumA[0u].xBlockStartLogicalAddr;
+         result = TRUE;
+     }
+     else
+     {
+ #ifdef EN_SUPPORT_APP_B
+         if(APP_B_TYPE == i_appType)
+         {
+             *o_pAppInfoStartAddr = gs_astBlockNumB[0u].xBlockStartLogicalAddr;
+             *o_pBlockSize = gs_astBlockNumB[0u].xBlockEndLogicalAddr - gs_astBlockNumB[0u].xBlockStartLogicalAddr;
+
+             result = TRUE;
+         }
+ #endif
+     }
+
+     return result;
+ }
+
+
+
+ /*read application informaiton from flash*/
+ static void Flash_ReadNewestAppInfoFromFlash(void)
+ {
+     tAPPType newestAppType = APP_A_TYPE;
+     uint32 appInfoStart = 0u;
+     uint32 appInfoBlocksize = 0u;
+     boolean result = FALSE;
+
+     newestAppType = Flash_GetNewestAPPType();
+
+     result = FLASH_HAL_GetAPPInfo(newestAppType, &appInfoStart, &appInfoBlocksize);
+
+     if((sizeof(tAppFlashStatus) <= appInfoBlocksize) && (TRUE == result))
+     {
+         result = Flash_SaveAppInfoData(appInfoStart);
+     }
+ }
+
+ /*Is application in flash valid? If valid return TRUE, else return FALSE.*/
+ uint8 Flash_IsAppInFlashValid(void)
+ {
+     if(((TRUE == Flash_IsFlashProgramSuccessful()) &&
+         (TRUE == Flash_IsFlashEraseSuccessful())) &&
+        (TRUE == Flash_IsFlashStructValid()))
+     {
+         return TRUE;
+     }
+
+     return FALSE;
+ }
+
+ /*Is read application inforemation from flash valid?*/
+ uint8 Flash_IsReadAppInfoFromFlashValid(void)
+ {
+     uint32 xCrc = 0u;
+
+     /*read application information from flash*/
+     Flash_ReadNewestAppInfoFromFlash();
+
+     Flash_CreateAppStatusCrc(&xCrc);
+
+     return Flash_IsFlashAppCrcEqualStorage(xCrc);
+
+ }
+ /*do check programming dependency*/
+  uint8 UDS_DoCheckProgrammingDependency(void)
+ {
+     uint8 ret = FALSE;
+
+     if(TRUE == Flash_IsReadAppInfoFromFlashValid())
+     {
+         if(TRUE == Flash_IsAppInFlashValid())
+         {
+             ret = TRUE;
+         }
+         else
+         {
+             ret = FALSE;
+         }
+     }
+     else
+     {
+         ret = FALSE;
+     }
+
+     return ret;
+ }
+
+  /*save app info data*/
+  static boolean Flash_SaveAppInfoData(const uint32 i_appInfoDataStartAddr)
+  {
+      boolean res = FALSE;
+  #ifdef EN_APP_INFO_DATA_IN_NONE_FLASH
+      res = FLASH_HAL_ReadAPPInfoData(i_appInfoDataStartAddr, (sizeof(tAppFlashStatus)), &gs_stAppFlashStatus);
+  #else
+      gs_stAppFlashStatus = *(tAppFlashStatus*)i_appInfoDataStartAddr;
+      res = TRUE;
+  #endif
+
+      return res;
+  }
+
+  /*save received check sum crc*/
+  void Flash_SavedReceivedCheckSumCrc(uint32 i_receivedCrc)
+  {
+      gs_stFlashDownloadInfo.receivedCRC = (uint32)i_receivedCrc;
+  }
+
+  /*set next downlaod step.*/
+  void Flash_SetNextDownloadStep(const tFlDownloadStepType i_donwloadStep)
+  {
+      gs_stFlashDownloadInfo.eDownloadStep = i_donwloadStep;
+  }
+
+  /*get flash driver start and length*/
+  boolean FLASH_HAL_GetFlashDriverInfo(uint32 *o_pFlashDriverAddrStart, uint32 *o_pFlashDriverEndAddr)
+  {
+      ASSERT(NULL_PTR == o_pFlashDriverAddrStart);
+      ASSERT(NULL_PTR == o_pFlashDriverEndAddr);
+
+
+      *o_pFlashDriverAddrStart = gs_astFlashDriverBlock[0u].xBlockStartLogicalAddr;
+      *o_pFlashDriverEndAddr = gs_astFlashDriverBlock[0u].xBlockEndLogicalAddr;
+
+      return TRUE;
+  }
+
+  /*erase flash driver in RAM*/
+  void Flash_EraseFlashDriverInRAM(void)
+  {
+      uint32 flashDriverStartAddr = 0u;
+      uint32 flashDriverEndAddr = 0u;
+      boolean result = FALSE;
+
+      result = FLASH_HAL_GetFlashDriverInfo(&flashDriverStartAddr, &flashDriverEndAddr);
+
+      if(TRUE == result)
+      {
+          memset((void *)flashDriverStartAddr, 0x0u, flashDriverEndAddr - flashDriverStartAddr);
+      }
+  }

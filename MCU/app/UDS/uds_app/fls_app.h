@@ -1,7 +1,7 @@
 #ifndef __FLS_APP_H__
 #define __FLS_APP_H__
 
-#include <drv/dflash.h>
+
 #include "string.h"
 #include "user_config.h"
 
@@ -51,6 +51,9 @@
 
 /** config if flash driver is compiled */
 #define TFLASH_COMPILED STD_OFF
+
+/*invalid UDS services ID*/
+#define INVALID_UDS_SERVICES_ID (0xFFu)
 /*=======[T Y P E   D E F I N I T I O N S]====================================*/
 /** flashloader job status */
 typedef enum
@@ -68,15 +71,20 @@ typedef enum
 /** flashloader download step */
 typedef enum
 {
-    FL_REQUEST_STEP,
+    FL_REQUEST_STEP,      /*flash request step*/
+    FL_TRANSFER_STEP,     /*flash transfer data step*/
+    FL_EXIT_TRANSFER_STEP,/*exit transfter data step*/
+    FL_CHECKSUM_STEP      /*check sum step*/
 
-    FL_TRANSFER_STEP,
+}tFlDownloadStepType;
 
-    FL_EXIT_TRANSFER_STEP,
-
-    FL_CHECKSUM_STEP
-
-} FL_DownloadStepType;
+/*Erase flash status control*/
+typedef enum
+{
+    START_ERASE_FLASH,     /*start erase flash*/
+    DO_ERASING_FLASH,   /*Do erase flash*/
+    END_ERASE_FLASH  /*end erase flash*/
+}tEraseFlashStep;
 
 /** Segment list information of the block */
 typedef struct
@@ -100,49 +108,6 @@ typedef struct
 
 } FL_SegmentListType;
 
-/** flashloader status information */
-typedef struct
-{
-    /* flag if finger print has written to NVM */
-    boolean fingerPrintWrittenFlag;
-    /* repair shop code buffer */
-    /* flag if finger print has written */
-    boolean fingerPrintWritten;
-
-    /* flag if finger print buffer */
-    uint8 fingerPrint[FL_FINGER_PRINT_LENGTH];
-
-    /* flag if flash driver has downloaded */
-    boolean flDrvDownloaded;
-
-    /* error code for flash active job */
-    uint8 errorCode;
-
-    /* flag if current block is erased */
-    boolean blockErased;
-
-    /* current process block index */
-    uint8 blockIndex;
-
-    /* current process start address */
-    uint32 startAddr;
-
-    /* current process length */
-    uint32 downLength;
-
-    /* current process buffer point, point to buffer supplied from DCM */
-    const uint8 *dataBuff;
-
-    /* segment list of current process block */
-    FL_SegmentListType segmentList;
-
-    /* flashloader download step */
-    FL_DownloadStepType downloadStep;
-
-    /* current job status */
-    FL_ActiveJobType activeJob;
-
-} FL_DownloadStateType;
 
 /* handle the two segments in one page */
 typedef struct
@@ -228,12 +193,13 @@ typedef struct
     uint32 infoChecksum;
 
 } FL_NvmInfoType;
-void FLASH_APP_Init(void);
-void Flash_InitDowloadInfo(void);
-void Flash_OperateMainFunction(void);
+
+void  FLASH_APP_Init(void);
+void  Flash_InitDowloadInfo(void);
+void  Flash_OperateMainFunction(void);
 uint8 Flash_Read(uint32 readAddr, void *pBuf, uint32 length);
 uint8 Flash_Erase(void);
 uint8 Flash_Write(void);
-
+void Flash_InitDowloadInfo(void);
 
 #endif

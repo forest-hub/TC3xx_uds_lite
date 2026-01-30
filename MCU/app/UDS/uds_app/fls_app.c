@@ -46,11 +46,10 @@
 #include "fl_cfc.h"
 #include "SecM.h"
 #include "uds_server.h"
+#include "dflash.h"
 const uint8 BL_Information[FL_NUM_LOGICAL_BLOCKS * 20 + 4] = {0x00};
-extern const FL_BlockDescriptorType FL_BlkInfo[FL_NUM_LOGICAL_BLOCKS];
-static uint8 FlProgramData[FL_PROGRAM_SIZE];
-static uint32 FlProgramLength = 0UL;
-static FL_RemainDataType FL_RemainDataStruct = { 0UL, 0UL};
+
+
 /** flashloader status information */
 /*request time status define*/
 #define REQ_TIME_SUCCESSFUL (1u)
@@ -74,55 +73,14 @@ do{\
 #define Flash_IsReqestTimeSuccessfull() ((1u == gs_reqTimeStatus) ? TRUE : FALSE)
 
 #define Flash_IsRequestTimeFailed() (((2u == gs_reqTimeStatus)) ? TRUE : FALSE)
-static FL_DownloadStateType FldownloadStatus;
-FL_NvmInfoType FL_NvmInfo;
-static tFlashParam flashParamInfo =
-    {
-        (uint8)FLASH_DRIVER_VERSION_PATCH,
-        (uint8)FLASH_DRIVER_VERSION_MINOR,
-        (uint8)FLASH_DRIVER_VERSION_MAJOR,
-        (uint8)0x00u,
-        (uint8)kFlashOk,
-        (uint16)0x0000U,
-        0UL,
-        0UL,
-        NULL_PTR,
-        NULL_PTR
-    };
 
+/*Is flash driver download?*/
+#define Flash_IsFlashDriverDownload() (gs_stFlashDownloadInfo.isFlashDrvDownloaded)
+#define Flash_SetFlashDriverDowload() (gs_stFlashDownloadInfo.isFlashDrvDownloaded = TRUE)
+#define Flash_SetFlashDriverNotDonwload() (gs_stFlashDownloadInfo.isFlashDrvDownloaded = FALSE)
 
-
-void FL_InitState(void)
-{
-#if BL_NvmInf
-    uint8 i = 0;
-    if ((0 == i) && (0 == BL_Information[0]))
-    {
-        i = 1;
-    }
-#endif
-
-    /* finger print is not written to NVM*/
-    FldownloadStatus.fingerPrintWrittenFlag = FALSE;
-    /* finger print is not written */
-    FldownloadStatus.fingerPrintWritten = FALSE;
-
-    /* flash driver is not downloaded */
-    FldownloadStatus.flDrvDownloaded = FALSE;
-
-    /* current block is not erased */
-    FldownloadStatus.blockErased = FALSE;
-
-    /* download step is download request 0x34 */
-    FldownloadStatus.downloadStep = FL_REQUEST_STEP;
-
-    /* current active job is idle */
-    FldownloadStatus.activeJob = FL_JOB_IDLE;
-
-    FL_RemainDataStruct.remainLength = 0UL;
-
-    return;
-}
+extern tFlsDownloadStateType gs_stFlashDownloadInfo;
+extern tAppFlashStatus       gs_stAppFlashStatus;
 
 /*Request mo retime sccessful from host.
 **i_txMsgStatus: 0 is successful, others is failed.
@@ -159,7 +117,7 @@ static uint8 FL_FillGap(void)
 {
     uint8 ret = FL_OK;
     uint8 segmentIndex = 0;
-    uint32 startAddress = FL_BlkInfo[FldownloadStatus.blockIndex].address;
+    uint32 startAddress = FL_BlkInfo[gs_stFlashDownloadInfo.blockIndex].address;
     uint32 gapLength;
 
     /* set the download data with FL_GAP_FILL_VALUE */
@@ -167,16 +125,16 @@ static uint8 FL_FillGap(void)
 
     flashParamInfo.data = (uint8 *)&FlProgramData[0];
 
-    while ((segmentIndex <= FldownloadStatus.segmentList.nrOfSegments) && (FL_OK == ret))
+    while ((segmentIndex <= gs_stFlashDownloadInfo.segmentList.nrOfSegments) && (FL_OK == ret))
     {
         /* find the length of the gap in the segment */
-        if (segmentIndex < FldownloadStatus.segmentList.nrOfSegments)
+        if (segmentIndex < gs_stFlashDownloadInfo.segmentList.nrOfSegments)
         {
-            gapLength = FldownloadStatus.segmentList.segmentInfo[segmentIndex].address - startAddress;
+            gapLength = gs_stFlashDownloadInfo.segmentList.segmentInfo[segmentIndex].address - startAddress;
         }
         else
         {
-            gapLength = (FL_BlkInfo[FldownloadStatus.blockIndex].address + FL_BlkInfo[FldownloadStatus.blockIndex].length) - startAddress;
+            gapLength = (FL_BlkInfo[gs_stFlashDownloadInfo.blockIndex].address + FL_BlkInfo[gs_stFlashDownloadInfo.blockIndex].length) - startAddress;
         }
 
         gapLength &= ~(FL_FLASH_ALIGN_SIZE - 1);
@@ -213,10 +171,10 @@ static uint8 FL_FillGap(void)
             }
         }
 
-        if (segmentIndex < FldownloadStatus.segmentList.nrOfSegments)
+        if (segmentIndex < gs_stFlashDownloadInfo.segmentList.nrOfSegments)
         {
             /* set the next start address */
-            startAddress = FldownloadStatus.segmentList.segmentInfo[segmentIndex].address + FldownloadStatus.segmentList.segmentInfo[segmentIndex].length;
+            startAddress = gs_stFlashDownloadInfo.segmentList.segmentInfo[segmentIndex].address + gs_stFlashDownloadInfo.segmentList.segmentInfo[segmentIndex].length;
 
             if ((startAddress & (FL_FLASH_ALIGN_SIZE - 1)) > 0)
             {
@@ -232,391 +190,415 @@ static uint8 FL_FillGap(void)
 }
 #endif
 
-
-/******************************************************************************/
-/**
- * @brief               <program data>
- *
- * <program the aligned data transfered by 0x36 service request > .
- * @param[in]           <NONE>
- * @param[out]          <NONE>
- * @param[in/out]       <NONE>
- * @return              <FL_ResultType>
- */
-/******************************************************************************/
-static uint8 FL_ProgrammingData(void)
+/*get operate flash active job*/
+tFlshJobModle Flash_GetOperateFlashActiveJob(void)
 {
-    uint8 ret = (uint8)FL_OK;
+    return gs_stFlashDownloadInfo.eActiveJob;
+}
 
-    /* check the program length and program status */
-    while ((FlProgramLength > 0UL) && ((uint8)FL_OK == ret))
+
+/*flash operate main function*/
+void Flash_OperateMainFunction(void)
+{
+    tFlshJobModle currentFlashJob = FLASH_IDLE;
+    boolean bIsOperateFinshed = FALSE;
+
+    currentFlashJob = Flash_GetOperateFlashActiveJob();
+
+    switch (currentFlashJob)
     {
-        /* check if the program size is more than maximum size of program buffer */
-        if ((FlProgramLength + FL_RemainDataStruct.remainLength) >= (uint32)FL_PROGRAM_SIZE)
-        {
-            /* get the download data */
-            memcpy(&FlProgramData[FL_RemainDataStruct.remainLength],
-                        FldownloadStatus.dataBuff,
-                        (uint32)FL_PROGRAM_SIZE - FL_RemainDataStruct.remainLength);
+        case FLASH_ERASING:
 
-            /* index the databuff point in transfered buffer */
-            FldownloadStatus.dataBuff += FL_PROGRAM_SIZE - FL_RemainDataStruct.remainLength;
+            /* do the flash erase*/
+            bIsOperateFinshed = FALSE;
+           // gs_stFlashDownloadInfo.errorCode = Flash_Erase(&bIsOperateFinshed);
 
-            /* index the total program length */
-            FlProgramLength -= FL_PROGRAM_SIZE - FL_RemainDataStruct.remainLength;
+            break;
 
-            /* set the flash driver input parameter */
-            flashParamInfo.address = FldownloadStatus.startAddr - FL_RemainDataStruct.remainLength;
-            flashParamInfo.length = (uint32)FL_PROGRAM_SIZE;
-            flashParamInfo.data = &FlProgramData[0];
+        case FLASH_PROGRAMMING:
 
-            /* program the data */
-            Hal_Flash_write(flashParamInfo.address, flashParamInfo.data, flashParamInfo.length);
+            bIsOperateFinshed = TRUE;
 
-            /* index the start address and length that record in 0x34 service */
-            FldownloadStatus.startAddr += FL_PROGRAM_SIZE - FL_RemainDataStruct.remainLength;
-            FldownloadStatus.downLength -= FL_PROGRAM_SIZE - FL_RemainDataStruct.remainLength;
-            FL_RemainDataStruct.remainAddr = FldownloadStatus.startAddr;
-            FL_RemainDataStruct.remainLength = 0x00U;
-            /* check if program success */
-            if (flashParamInfo.errorCode != (uint8)kFlashOk)
+            /* do the flash program*/
+           // gs_stFlashDownloadInfo.errorCode = Flash_Write(&bIsOperateFinshed);
+
+            break;
+
+        case FLASH_CHECKING:
+
+            /* do the flash checksum*/
+            bIsOperateFinshed = TRUE;
+           // gs_stFlashDownloadInfo.errorCode = Flash_Checksum(&bIsOperateFinshed);
+
+            break;
+
+        case FLASH_WAITTING:
+
+            if(TRUE == Flash_IsReqestTimeSuccessfull())
             {
-                ret = (uint8)FL_FAILED;
+                Flash_ClearRequestTimeStauts();
+
+             //   Flash_RestoreInterruptedJob();
+                //Flash_RestoreOperateFlashActiveJob(FLASH_ERASING);
+            }
+            else if(TRUE == Flash_IsRequestTimeFailed())
+            {
+                Flash_ClearRequestTimeStauts();
+
+                /*set erase flash step to start!*/
+              //  Flash_SetEraseFlashStep(START_ERASE_FLASH);
+
+                /* initialize the flash download state */
+                Flash_InitDowloadInfo();
+
+                /*set flash job is IDLE*/
+                Flash_SetOperateFlashActiveJob(FLASH_IDLE, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
             }
             else
             {
-                /* empty */
-            }
-        }
-        else
-        {
-            /* set the last data for write of current service 0x36 */
-            memcpy(&FlProgramData[FL_RemainDataStruct.remainLength],
-                        FldownloadStatus.dataBuff,
-                        FlProgramLength);
-            FL_RemainDataStruct.remainAddr = FldownloadStatus.startAddr - FL_RemainDataStruct.remainLength;
-            FL_RemainDataStruct.remainLength += FlProgramLength;
-            /* index the start address and length that record in 0x34 service */
-            FldownloadStatus.startAddr += FlProgramLength;
-            FldownloadStatus.downLength -= FlProgramLength;
-            /* end of current service 0x36 */
-            FlProgramLength = 0UL;
-        }
-    }
+                /*do nothing*/
 
-    return ret;
-}
-
-/******************************************************************************/
-/**
- * @brief               <program bootloader infomation to EEPROM>
- *
- * <program bootloader infomation to EEPROM,e.g. block valid,checksum,
- *  fingerprint..> .
- * @param[in]           <NONE>
- * @param[out]          <NONE>
- * @param[in/out]       <NONE>
- * @return              <FL_ResultType>
- */
-/******************************************************************************/
-static uint8 FL_UpdateNvm(void)
-{
-    uint8 ret = (uint8)FL_FAILED;
-    /* CRC32 parameter */
-    SecM_CRCParamType crcParam;
-
-    /* Initialize CRC32 parameter */
-    crcParam.crcState = (uint8)SECM_CRC_INIT;
-    crcParam.crcSourceBuffer = (const uint8 *)&FL_NvmInfo;
-    crcParam.crcByteCount = (uint16)(sizeof(FL_NvmInfoType) - (uint8)4);
-
-    /* compute CRC of the block information */
-    (void)SecM_ComputeCRC(&crcParam);
-    crcParam.crcState = (uint8)SECM_CRC_COMPUTE;
-    (void)SecM_ComputeCRC(&crcParam);
-    crcParam.crcState = (uint8)SECM_CRC_FINALIZE;
-    (void)SecM_ComputeCRC(&crcParam);
-
-    /* program computed CRC value to flash */
-    FL_NvmInfo.infoChecksum = crcParam.currentCRC;
-
-    /* set input parameter of flash driver interface */
-    flashParamInfo.data = (const uint8 *)&FL_NvmInfo;
-    flashParamInfo.address = FL_NVM_INFO_ADDRESS;
-    flashParamInfo.length = (uint32)sizeof(FL_NvmInfoType);
-
-    /* erase flash block witch store the blocks information */
-    Hal_Flash_Erase(flashParamInfo.address, flashParamInfo.length);
-    if ((uint8)kFlashOk == flashParamInfo.errorCode)
-    {
-        /* program blocks information */
-        flashParamInfo.length = (uint32)sizeof(FL_NvmInfoType);
-
-        Hal_Flash_write(flashParamInfo.address, flashParamInfo.data, flashParamInfo.length);
-    }
-    else
-    {
-        /* empty */
-    }
-
-    if ((uint8)kFlashOk == flashParamInfo.errorCode)
-    {
-        /* finger print is not written to NVM*/
-        FldownloadStatus.fingerPrintWrittenFlag = TRUE;
-
-        ret = (uint8)FL_OK;
-    }
-    else
-    {
-        /* empty */
-    }
-
-    return ret;
-}
-
-static uint8 FL_Erasing(void)
-{
-    uint8 ret = (uint8)FL_OK;
-    uint32 tempLength;
-    uint8 pendingIndex = 0u;
-    /* update the bootloader information to EEPROM */
-    ret = FL_UpdateNvm();
-
-    if ((uint8)FL_OK == ret)
-    {
-        /* set flash driver input parameter */
-        flashParamInfo.address = FL_BlkInfo[FldownloadStatus.blockIndex].address;
-        flashParamInfo.length = FL_BlkInfo[FldownloadStatus.blockIndex].length;
-
-        if (flashParamInfo.length <= 0x30000U)
-        {
-            /* erase the flash of the requested block */
-            Hal_Flash_Erase(flashParamInfo.address, flashParamInfo.length);
-        }
-        else
-        {
-            tempLength = flashParamInfo.length - 0x30000U;
-            flashParamInfo.length = 0x30000U;
-            Hal_Flash_Erase(flashParamInfo.address, flashParamInfo.length);
-            flashParamInfo.address += flashParamInfo.length;
-            /* force sending pending */
-            UDS_RequestMoreTime(31,RequetMoreTimeSuccessfulFromHost);
-
-            while (((uint8)kFlashOk == flashParamInfo.errorCode) && (tempLength > 0x40000u) && (flashParamInfo.address < 0xA0200000u))
-            {
-                pendingIndex++;
-                flashParamInfo.length = 0x40000U;
-                Hal_Flash_Erase(flashParamInfo.address, flashParamInfo.length);
-                flashParamInfo.address += flashParamInfo.length;
-                tempLength -= 0x40000U;
-
-                if (2u == pendingIndex)
-                {
-                    pendingIndex = 0u;
-                    /* force sending pending */
-                    UDS_RequestMoreTime(31,RequetMoreTimeSuccessfulFromHost);
-
-                }
             }
 
-            if (flashParamInfo.address >= 0xA0200000u)
+            break;
+
+        default:
+            break;
+    }
+
+    /*just operate flash finshed, can do callback and set next job.*/
+    if(TRUE == bIsOperateFinshed)
+    {
+        if((NULL_PTR != gs_stFlashDownloadInfo.pfActiveJobFinshedCallBack) && (FLASH_IDLE != currentFlashJob))
+        {
+            (gs_stFlashDownloadInfo.pfActiveJobFinshedCallBack)(gs_stFlashDownloadInfo.errorCode);
+
+            gs_stFlashDownloadInfo.pfActiveJobFinshedCallBack = NULL_PTR;
+        }
+
+        if ((gs_stFlashDownloadInfo.errorCode != TRUE) &&
+            ((FLASH_ERASING == currentFlashJob) ||
+             (FLASH_PROGRAMMING == currentFlashJob) ||
+             (FLASH_CHECKING == currentFlashJob)))
+        {
+            /* initialize the flash download state */
+            Flash_InitDowloadInfo();
+        }
+
+
+        /*set flash job is IDLE*/
+        Flash_SetOperateFlashActiveJob(FLASH_IDLE, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
+    }
+}
+
+/*Init flash download*/
+void Flash_InitDowloadInfo(void)
+{
+    gs_stFlashDownloadInfo.isFingerPrintWritten = FALSE;
+
+    if(TRUE == Flash_IsFlashDriverDownload())
+    {
+        Flash_EraseFlashDriverInRAM();
+
+        Flash_SetFlashDriverNotDonwload();
+    }
+
+    Flash_SetNextDownloadStep(FL_REQUEST_STEP);
+
+    Flash_SetOperateFlashActiveJob(FLASH_IDLE, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
+
+    gs_stFlashDownloadInfo.pstAppFlashStatus = &gs_stAppFlashStatus;
+
+    memset(&gs_stFlashDownloadInfo.stFlashOperateAPI, 0x0u, sizeof(tFlashOperateAPI));
+
+    memset(&gs_stAppFlashStatus, 0xFFu, sizeof(tAppFlashStatus));
+}
+
+
+/* Fash Erase*/
+static uint8 Flash_Erase(boolean * o_pbIsOperateFinsh)
+{
+    static uint8 s_result = TRUE;
+    uint32 eraseFlashLen = 0u;
+    uint32 xCountCrc = 0u;
+    static tAPPType s_appType = APP_INVLID_TYPE;
+    static BlockInfo_t * s_pAppFlashMemoryInfo = NULL_PTR;
+    static uint32 s_appFlashItem = 0u;
+    uint32 sectorNo = 0u;
+    const uint32 maxEraseSectors = UDS_GetUDSS3WatermarkTimerMs() / FLASH_HAL_GetEraseFlashASectorMaxTimeMs();
+    uint32 totalSectors = 0u;
+    uint32 canEraseMaxSectors = 0u;
+    static uint32 s_eraseSectorsCnt = 0u;
+    uint32 eraseFlashStartAddr = 0u;
+    uint32 eraseSectorNoTmp = 0u;
+
+    ASSERT(NULL_PTR == o_pbIsOperateFinsh);
+
+    /*check flash driver valid or not?*/
+    if(TRUE != Flash_IsFlashDriverDownload())
+    {
+        return FALSE;
+    }
+
+    *o_pbIsOperateFinsh = FALSE;
+
+    switch(Flash_GetCurEraseFlashStep())
+    {
+        case START_ERASE_FLASH:
+            /*get old app type*/
+            s_appType = Flash_GetOldAPPType();
+
+            s_pAppFlashMemoryInfo = NULL_PTR;
+            s_appFlashItem = 0u;
+            s_eraseSectorsCnt = 0u;
+
+            s_result = TRUE;
+
+            /*get old app type flash config*/
+            if(TRUE == FLASH_HAL_GetFlashConfigInfo(s_appType, &s_pAppFlashMemoryInfo, &s_appFlashItem))
             {
-                /* force sending pending */
-                UDS_RequestMoreTime(31,RequetMoreTimeSuccessfulFromHost);
+                Flash_SetEraseFlashStep(DO_ERASING_FLASH);
+            }
+
+            break;
 
 
-                pendingIndex = 0u;
-                while (((uint8)kFlashOk == flashParamInfo.errorCode) && (tempLength >= 0x40000U))
+        case DO_ERASING_FLASH:
+            /*get total sectors*/
+            totalSectors = FLASH_HAL_GetTotalSectors(s_appType);
+
+            /*one time erase all flash sectors*/
+            if(totalSectors <= maxEraseSectors)
+            {
+                while(s_appFlashItem)
                 {
-                    pendingIndex++;
+                    eraseFlashLen = s_pAppFlashMemoryInfo->xBlockEndLogicalAddr -
+                                    s_pAppFlashMemoryInfo->xBlockStartLogicalAddr;
 
-                    flashParamInfo.length = 0x40000U;
-                    Hal_Flash_Erase(flashParamInfo.address, flashParamInfo.length);
-                    flashParamInfo.address += flashParamInfo.length;
-                    tempLength -= 0x40000U;
-                    if (2u == pendingIndex)
+                    /*fed watchdog*/
+                    WATCHDOG_HAL_Fed();
+
+                    sectorNo = FLASH_HAL_GetFlashLengthToSectors(s_pAppFlashMemoryInfo->xBlockStartLogicalAddr, eraseFlashLen);
+
+                    if(NULL_PTR != gs_stFlashDownloadInfo.stFlashOperateAPI.pfEraserSecotr)
                     {
-                        pendingIndex = 0u;
-                        /* force sending pending */
-                        UDS_RequestMoreTime(31,RequetMoreTimeSuccessfulFromHost);
+                        /*disable all interrupts*/
+                        DisableAllInterrupts();
 
+                        eraseSectorNoTmp = sectorNo;
 
+                        eraseFlashStartAddr = s_pAppFlashMemoryInfo->xBlockStartLogicalAddr;
+
+                        /*erase a sector once because for watchdog*/
+                        while(eraseSectorNoTmp)
+                        {
+                            /*fed watchdog*/
+                            WATCHDOG_HAL_Fed();
+
+                            /*do erase flash */
+                            s_result = gs_stFlashDownloadInfo.stFlashOperateAPI.pfEraserSecotr(eraseFlashStartAddr, 1u);
+
+                            eraseSectorNoTmp--;
+                            if(TRUE != s_result)
+                            {
+                                break;
+                            }
+
+                            eraseFlashStartAddr += FLASH_HAL_Get1SectorBytes();
+                        }
+
+                        /*enable all all interrupts*/
+                        EnableAllInterrupts();
                     }
+                    else
+                    {
+                        s_result = FALSE;
+                    }
+
+                    if(TRUE != s_result)
+                    {
+                        break;
+                    }
+
+                    s_eraseSectorsCnt += sectorNo;
+
+                    s_appFlashItem--;
+                    s_pAppFlashMemoryInfo++;
+                }
+
+            }
+            else
+            {
+                while((s_eraseSectorsCnt < totalSectors) && (0u != s_appFlashItem))
+                {
+                    /*fed watchdog*/
+                    WATCHDOG_HAL_Fed();
+
+                    /*get erase sector start address*/
+                    if(TRUE != FLASH_HAL_SectorNumberToFlashAddress(s_appType, s_eraseSectorsCnt, &eraseFlashStartAddr))
+                    {
+                        s_result = FALSE;
+
+                        break;
+                    }
+
+                    /*check erase sector indicate flash address is valid or not?*/
+                    if((eraseFlashStartAddr >= s_pAppFlashMemoryInfo->xBlockStartLogicalAddr) &&
+                        (eraseFlashStartAddr < s_pAppFlashMemoryInfo->xBlockEndLogicalAddr))
+                    {
+                        /*calculate length*/
+                        eraseFlashLen = s_pAppFlashMemoryInfo->xBlockEndLogicalAddr -
+                                        eraseFlashStartAddr;
+                    }
+                    else
+                    {
+                        s_result = FALSE;
+
+                        break;
+                    }
+
+                    /*save erase flash memeory address*/
+                    //eraseFlashStartAddr = s_pAppFlashMemoryInfo->xBlockStartLogicalAddr;
+
+                    /*calculate can erase max sectors*/
+                    canEraseMaxSectors = maxEraseSectors - (s_eraseSectorsCnt % maxEraseSectors);
+
+                    /*calculate flash length to sectors*/
+                    sectorNo = FLASH_HAL_GetFlashLengthToSectors(eraseFlashStartAddr, eraseFlashLen);
+                    if(sectorNo > maxEraseSectors)
+                    {
+                        sectorNo = maxEraseSectors;
+                        if(sectorNo > canEraseMaxSectors)
+                        {
+                            sectorNo = canEraseMaxSectors;
+                        }
+                    }
+                    else
+                    {
+                        if(sectorNo <= canEraseMaxSectors)
+                        {
+                            s_appFlashItem--;
+                            s_pAppFlashMemoryInfo++;
+                        }
+                        else
+                        {
+                            sectorNo = canEraseMaxSectors;
+                        }
+                    }
+
+                    /*erase flash memory*/
+                    if(NULL_PTR != gs_stFlashDownloadInfo.stFlashOperateAPI.pfEraserSecotr)
+                    {
+                        /*disable all interrupts*/
+                        DisableAllInterrupts();
+
+                        eraseSectorNoTmp = sectorNo;
+
+                        /*erase a sector once because for watchdog*/
+                        while(eraseSectorNoTmp)
+                        {
+                            /*fed watchdog*/
+                            WATCHDOG_HAL_Fed();
+
+                            /*do erase flash */
+                            s_result = gs_stFlashDownloadInfo.stFlashOperateAPI.pfEraserSecotr(eraseFlashStartAddr, 1u);
+
+                            eraseSectorNoTmp--;
+                            if(TRUE != s_result)
+                            {
+                                break;
+                            }
+
+                            eraseFlashStartAddr += FLASH_HAL_Get1SectorBytes();
+                        }
+
+
+                        /*enable all all interrupts*/
+                        EnableAllInterrupts();
+                    }
+                    else
+                    {
+                        s_result = FALSE;
+                    }
+
+                    if(TRUE != s_result)
+                    {
+                        break;
+                    }
+
+                    /*add erased sectors count*/
+                    s_eraseSectorsCnt += sectorNo;
+
+                    /*if erase max Erase sectors and have some sectors wait to erase, then request time from host*/
+                    if((0u == (s_eraseSectorsCnt % maxEraseSectors)) && (s_eraseSectorsCnt < totalSectors))
+                    {
+                        *o_pbIsOperateFinsh = FALSE;
+
+                        break;
+                    }
+
+                }
+
+            }
+
+            if((FALSE == *o_pbIsOperateFinsh) && (TRUE == s_result) && (s_eraseSectorsCnt < totalSectors))
+            {
+                Flash_RegInterruptedJob(FLASH_ERASING);
+                Flash_RestoreOperateFlashActiveJob(FLASH_WAITTING);
+
+                /*request more time from host*/
+                if(NULL_PTR != gs_stFlashDownloadInfo.pfRequestMoreTime)
+                {
+                    gs_stFlashDownloadInfo.pfRequestMoreTime(gs_stFlashDownloadInfo.requestActiveJobUDSSerID, RequetMoreTimeSuccessfulFromHost);
                 }
             }
-        }
-
-        /* check if erase success */
-        if ((uint8)kFlashOk == flashParamInfo.errorCode)
-        {
-            /* set the block erased */
-            FldownloadStatus.blockErased = TRUE;
-        }
-        else
-        {
-            ret = (uint8)FL_FAILED;
-        }
-    }
-    else
-    {
-        /* empty */
-    }
-
-    return ret;
-}
-
-/******************************************************************************/
-/**
- * @brief               <active job program>
- *
- * <program the data transfered by 0x36 service request > .
- * @param[in]           <NONE>
- * @param[out]          <NONE>
- * @param[in/out]       <NONE>
- * @return              <FL_ResultType>
- */
-/******************************************************************************/
-static uint8 FL_Programming(void)
-{
-    uint8 ret = (uint8)FL_OK;
-
-    /* program buffer aligned data */
-    ret = FL_ProgrammingData();
-
-    /* check if the last not aligned data should be programmed */
-    if ((0UL == FldownloadStatus.downLength) && ((uint8)FL_OK == ret))
-    {
-        FldownloadStatus.downloadStep = FL_EXIT_TRANSFER_STEP;
-    }
-    else
-    {
-        /* empty */
-    }
-
-    return ret;
-}
-
-
-static uint8 FL_CheckSuming(void)
-{
-    uint8 ret = (uint8)FL_OK;
-    uint8 secMStatus;
-    SecM_VerifyParamType verifyParam;
-
-    /* set verification API input parameter */
-    verifyParam.segmentList = &FldownloadStatus.segmentList;
-    verifyParam.verificationData = FldownloadStatus.dataBuff;
-
-    /* CRC compute and verification */
-    secMStatus = SecM_Verification(&verifyParam);
-
-    /* set block not erased */
-    FldownloadStatus.blockErased = FALSE;
-
-    /* check if CRC if correct */
-    if (SECM_OK == secMStatus)
-    {
-        /* check if flash driver is downloaded */
-        if (FALSE == FldownloadStatus.flDrvDownloaded)
-        {
-            /* flash driver initialize */
-           // BLFlash_InfoPtr->flashInitFct(&flashParamInfo);
-            flashParamInfo.errorCode = kFlashOk;
-            /* check if flash driver is initialized success */
-            if (flashParamInfo.errorCode != (uint8)kFlashOk)
-            {
-                ret = (uint8)FL_FAILED;
-            }
             else
             {
-                FldownloadStatus.flDrvDownloaded = TRUE;
-            }
-        }
-        else
-        {
-            /* set current block is valid */
-            FL_NvmInfo.blockInfo[FldownloadStatus.blockIndex].blkValid = TRUE;
+                if((TRUE == s_result) && (s_eraseSectorsCnt == totalSectors))
+                {
+                    Flash_SetAPPStatus(TRUE, FALSE, TRUE);
 
-            /* save computed CRC to NVM if CRC success */
-            FL_NvmInfo.blockInfo[FldownloadStatus.blockIndex].blkChecksum = verifyParam.crcTotle;
+                    Flash_SetAPPTypeErased(s_appType);
+                }
+                else
+                {
+                    Flash_SetAPPStatus(FALSE, FALSE, TRUE);
 
-            /* fill the gap if configured */
-#if   (FL_USE_GAP_FILL)
-            ret = FL_FillGap();
+                    Flash_ClearAPPTypeErased(s_appType);
+                }
 
-            if ((uint8)FL_OK == ret)
-#endif
-            {
-                /* response pending (7F 2E 78) during updating nvm */
-                FldownloadStatus.errorCode = (uint8)FL_UPDATING_NVM;
+                Flash_CreateAndSaveAppStatusCrc(&xCountCrc);
 
-                /* update nvm */
-                ret = FL_UpdateNvm();
+                s_eraseSectorsCnt = 0u;
+
+                Flash_SetEraseFlashStep(END_ERASE_FLASH);
             }
 
-            /* check if EEPROM UPDATE failed */
-            if (ret != (uint8)FL_OK)
-            {
-                FL_NvmInfo.blockInfo[FldownloadStatus.blockIndex].blkValid = FALSE;
-            }
-            else
-            {
-                /* empty */
-            }
-        }
+            break;
+
+        case END_ERASE_FLASH:
+
+            WATCHDOG_HAL_Fed();
+
+            s_pAppFlashMemoryInfo = NULL_PTR;
+            s_appFlashItem = 0u;
+            s_eraseSectorsCnt = 0u;
+
+            *o_pbIsOperateFinsh = TRUE;
+
+            Flash_SetEraseFlashStep(START_ERASE_FLASH);
+
+            break;
+
+        default:
+
+            Flash_SetEraseFlashStep(START_ERASE_FLASH);
+
+            break;
     }
-    else
-    {
-        ret = (uint8)FL_FAILED;
-    }
 
-    /* reset download step */
-    FldownloadStatus.downloadStep = FL_REQUEST_STEP;
-
-    return ret;
+    return s_result;
 }
-
-
-void FL_MainFunction(void)
-{
-    switch (FldownloadStatus.activeJob)
-    {
-    case FL_JOB_ERASING:
-        /* do the flash erase */
-        FldownloadStatus.errorCode = FL_Erasing();
-        break;
-
-    case FL_JOB_PROGRAMMING:
-        /* do the flash program */
-        FldownloadStatus.errorCode = FL_Programming();
-        break;
-
-    case FL_JOB_CHECKING:
-        /* do the flash checksum */
-        FldownloadStatus.errorCode = FL_CheckSuming();
-        break;
-
-    default:
-        break;
-    }
-
-    if (FldownloadStatus.errorCode != (uint8)FL_OK)
-    {
-        /* initialize the flash download state */
-        FL_InitState();
-    }
-    else
-    {
-        /* empty */
-    }
-
-    FldownloadStatus.activeJob = FL_JOB_IDLE;
-
-    return;
-}
-
-
-
 
 
 
