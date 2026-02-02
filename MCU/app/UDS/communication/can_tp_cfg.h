@@ -9,7 +9,7 @@
 **  Description : ISO 15765-2 config file
 *******************************************************/
 typedef void (*tpfNetTxCallBack)(void);
-typedef uint8 (*tNetTxMsg)(const uint32, const uint16, const uint8 *, const tpfNetTxCallBack, const uint32);
+typedef uint8 (*tNetTxMsg)(const uint32, const uint32, const uint8 *, const tpfNetTxCallBack, const uint32);
 typedef uint8 (*tNetRx)(uint32 *, uint8 *, uint8 *);
 
 
@@ -52,20 +52,20 @@ typedef void (*tpfAbortTxMsg)(void);
 
 typedef struct
 {
-    uint8 ucCalledPeriod;/*called CAN tp main function period*/
+    uint8 ucCalledPeriod;        /*called CAN tp main function period*/
     uint32 xRxFunId;             /*rx function ID*/
     uint32 xRxPhyId;             /*Rx phy ID*/
     uint32 xTxId;                /*Tx ID*/
-    uint16 xBlockSize;       /*BS*/
-    uint16 xSTmin;             /*STmin*/
-    uint16 xNAs;               /*N_As*/
-    uint16 xNAr;               /*N_Ar*/
-    uint16 xNBs;               /*N_Bs*/
-    uint16 xNBr;               /*N_Br*/
-    uint16 xNCs;               /*N_Cs*/
-    uint16 xNCr;               /*N_Cr*/
+    uint16 xBlockSize;           /*BS*/
+    uint16 xSTmin;               /*STmin*/
+    uint16 xNAs;                 /*N_As*/
+    uint16 xNAr;                 /*N_Ar*/
+    uint16 xNBs;                 /*N_Bs*/
+    uint16 xNBr;                 /*N_Br*/
+    uint16 xNCs;                 /*N_Cs*/
+    uint16 xNCr;                 /*N_Cr*/
     uint32 txBlockingMaxTimeMs;  /*TX message blocking max time (MS)*/
-    tNetTxMsg pfNetTxMsg;/*net tx message with non blocking*/
+    tNetTxMsg pfNetTxMsg;        /*net tx message with non blocking*/
     tNetRx pfNetRx;              /*net rx*/
     tpfAbortTxMsg pfAbortTXMsg;  /*abort tx message*/
 }tUdsCANNetLayerCfg;
@@ -74,10 +74,8 @@ typedef struct
 /*uds netwrok layer cfg info */
 extern const tUdsCANNetLayerCfg g_stCANUdsNetLayerCfgInfo;
 
-
 /*get config CAN TP tx ID*/
 uint32 CANTP_GetConfigTxMsgID(void);
-
 
 /*get config CAN TP recevie function message ID*/
 uint32 CANTP_GetConfigRxMsgFUNID(void);

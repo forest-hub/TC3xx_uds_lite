@@ -18,191 +18,79 @@
 #define IsFF(xNetWorkFrameType) ((((xNetWorkFrameType) >> 4u) ==  FF) ? TRUE : FALSE)
 #define IsCF(xNetWorkFrameType) ((((xNetWorkFrameType) >> 4u) ==  CF) ? TRUE : FALSE)
 #define IsFC(xNetWorkFrameType) ((((xNetWorkFrameType)>> 4u) ==  FC) ? TRUE : FALSE)
-#define IsRevSNValid(xSN) ((gs_stCanTPRxDataInfo.ucSN == ((xSN) & 0x0Fu)) ? TRUE : FALSE)
-#define AddWaitSN()\
-do{\
-    gs_stCanTPRxDataInfo.ucSN++;\
-    if(gs_stCanTPRxDataInfo.ucSN > 0x0Fu)\
-    {\
-        gs_stCanTPRxDataInfo.ucSN = 0u;\
-    }\
-}while(0u)
+#define IsRevSNValid(xSN)       ((gs_stCanTPRxDataInfo.ucSN == ((xSN) & 0x0Fu)) ? TRUE : FALSE)
+#define AddWaitSN()               do{gs_stCanTPRxDataInfo.ucSN++;\
+                                     if(gs_stCanTPRxDataInfo.ucSN > 0x0Fu) {gs_stCanTPRxDataInfo.ucSN = 0u; }\
+                                    }while(0u)
 
-#define GetFrameLen(pucRevData, pxDataLen)\
-do{\
-    if(TRUE == IsFF(pucRevData[0u]))\
-    {\
-        *(pxDataLen) = ((uint16)(pucRevData[0u] & 0x0fu) << 8u) | (uint16)pucRevData[1u];\
-    }\
-    else\
-    {\
-        *(pxDataLen) = (uint8)(pucRevData[0u] & 0x0fu);\
-    }\
-}while(0u)
+#define GetFrameLen(pucRevData, pxDataLen)     do{if(TRUE == IsFF(pucRevData[0u]))\
+                                                 {*(pxDataLen) = ((uint16)(pucRevData[0u] & 0x0fu) << 8u) | (uint16)pucRevData[1u];}\
+                                                    else{*(pxDataLen) = (uint8)(pucRevData[0u] & 0x0fu);}\
+                                                 }while(0u)
 
 /*check received message length valid or not?*/
-#define IsRxMsgLenValid(address_type, frameLen, RXCANMsgLen) ((address_type == NORMAL_ADDRESSING) ? (frameLen <= RXCANMsgLen - 1) : (frameLen <= RXCANMsgLen - 2))
-
+#define IsRxMsgLenValid(address_type, frameLen, RXCANMsgLen)   ((address_type == NORMAL_ADDRESSING) ? \
+                                                               (frameLen <= RXCANMsgLen - 1) : (frameLen <= RXCANMsgLen - 2))
 /*save FF data len*/
-#define SaveFFDataLen(i_xRevFFDataLen) (gs_stCanTPRxDataInfo.stCanTpDataInfo.xFFDataLen = i_xRevFFDataLen)
+#define SaveFFDataLen(i_xRevFFDataLen)   (gs_stCanTPRxDataInfo.stCanTpDataInfo.xFFDataLen = i_xRevFFDataLen)
+#define Seuint16(pucBSBuf, xBlockSize)   (*(pucBSBuf) = (uint8)(xBlockSize))
+#define AddBlockSize()                   do{if(0u != g_stCANUdsNetLayerCfgInfo.xBlockSize) {gs_stCanTPRxDataInfo.ucBlockSize++;}\
+                                          }while(0u)
 
-/*set BS*/
-#define Seuint16(pucBSBuf, xBlockSize) (*(pucBSBuf) = (uint8)(xBlockSize))
-
-/*add block size*/
-#define AddBlockSize()\
-do{\
-    if(0u != g_stCANUdsNetLayerCfgInfo.xBlockSize)\
-    {\
-        gs_stCanTPRxDataInfo.ucBlockSize++;\
-    }\
-}while(0u)
-
-/*set STmin*/
-#define SetSTmin(pucSTminBuf, xSTmin) (*(pucSTminBuf) = (uint8)(xSTmin))
-
-/*set wait  STmin*/
-#define SetWaitSTmin() (gs_stCanTPRxDataInfo.xSTmin = CanTpTimeToCount(g_stCANUdsNetLayerCfgInfo.xSTmin))
-
-/*set wait frame time*/
-#define SetRxWaitFrameTime(xWaitTimeout) do{\
-    (gs_stCanTPRxDataInfo.xMaxWatiTimeout = CanTpTimeToCount(xWaitTimeout));\
-    gs_CANTPTxMsgMaxWaitTime = gs_stCanTPRxDataInfo.xMaxWatiTimeout;\
-}while(0u);
-
+#define SetSTmin(pucSTminBuf, xSTmin)      (*(pucSTminBuf) = (uint8)(xSTmin))
+#define SetWaitSTmin()                     (gs_stCanTPRxDataInfo.xSTmin = CanTpTimeToCount(g_stCANUdsNetLayerCfgInfo.xSTmin))
+#define SetRxWaitFrameTime(xWaitTimeout)   do{(gs_stCanTPRxDataInfo.xMaxWatiTimeout = CanTpTimeToCount(xWaitTimeout));\
+                                              gs_CANTPTxMsgMaxWaitTime = gs_stCanTPRxDataInfo.xMaxWatiTimeout;\
+                                            }while(0u);
 /*RX frame set Rx msg wait time*/
-#define RXFrame_SetRxMsgWaitTime(xWaitTimeout) SetRxWaitFrameTime(xWaitTimeout)
-
-/*RX frame set Tx msg wait time*/
-#define RXFrame_SetTxMsgWaitTime(xWaitTimeout) SetRxWaitFrameTime(xWaitTimeout)
-
-/*set wait SN*/
-#define SetWaitSN(xSN) (gs_stCanTPRxDataInfo.ucSN = xSN)
-
-/*set FS*/
-#define SetFS(pucFsBuf, xFlowStatus) (*(pucFsBuf) = (*(pucFsBuf) & 0xF0u) | (uint8)(xFlowStatus))
-
-/*clear receive data buf*/
-#define ClearRevDataBuf()\
-do{\
-    memset(&gs_stCanTPRxDataInfo,0u,sizeof(gs_stCanTPRxDataInfo));\
-}while(0u)
-
-/*add rev data len*/
-#define AddRevDataLen(xRevDataLen) (gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen += (xRevDataLen))
-
-/*Is rev conective frame all.*/
-#define IsReciveCFAll(xCFDataLen) (((gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen + (uint8)(xCFDataLen))\
-                                    >= gs_stCanTPRxDataInfo.stCanTpDataInfo.xFFDataLen) ? TRUE : FALSE)
+#define RXFrame_SetRxMsgWaitTime(xWaitTimeout)   SetRxWaitFrameTime(xWaitTimeout)
+#define RXFrame_SetTxMsgWaitTime(xWaitTimeout)   SetRxWaitFrameTime(xWaitTimeout)
+#define SetWaitSN(xSN)                           (gs_stCanTPRxDataInfo.ucSN = xSN)
+#define SetFS(pucFsBuf, xFlowStatus)             (*(pucFsBuf) = (*(pucFsBuf) & 0xF0u) | (uint8)(xFlowStatus))
+#define ClearRevDataBuf()                        do{ memset(&gs_stCanTPRxDataInfo,0u,sizeof(gs_stCanTPRxDataInfo));}while(0u)
+#define AddRevDataLen(xRevDataLen)               (gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen += (xRevDataLen))
+#define IsReciveCFAll(xCFDataLen)                (((gs_stCanTPRxDataInfo.stCanTpDataInfo.xPduDataLen + (uint8)(xCFDataLen))\
+                                                    >= gs_stCanTPRxDataInfo.stCanTpDataInfo.xFFDataLen) ? TRUE : FALSE)
 
 /*Is STmin timeout?*/
-#define IsSTminTimeOut() ((0u == gs_stCanTPRxDataInfo.xSTmin) ? TRUE : FALSE)
+#define IsSTminTimeOut()             ((0u == gs_stCanTPRxDataInfo.xSTmin) ? TRUE : FALSE)
+#define IsWaitFCTimeout()            ((0u == gs_stCanTPRxDataInfo.xMaxWatiTimeout) ? TRUE : FALSE)
+#define IsWaitCFTimeout()            ((0u == gs_stCanTPRxDataInfo.xMaxWatiTimeout) ? TRUE : FALSE)
 
-/*Is wait Flow control timeout?*/
-#define IsWaitFCTimeout()  ((0u == gs_stCanTPRxDataInfo.xMaxWatiTimeout) ? TRUE : FALSE)
+#define IsRxBlockSizeOverflow()      (((0u != g_stCANUdsNetLayerCfgInfo.xBlockSize) &&\
+                                      (gs_stCanTPRxDataInfo.ucBlockSize >= g_stCANUdsNetLayerCfgInfo.xBlockSize)) ? TRUE : FALSE)
+#define IsTxDataLenOverflowSF()      ((gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen > TX_SF_DATA_MAX_LEN) ? TRUE : FALSE)
+#define IsTxDataLenLessSF()          ((0u == gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen) ? TRUE : FALSE)
+#define SetTxSFDataLen(pucSFDataLenBuf, xTxSFDataLen)    do{ *(pucSFDataLenBuf) &= 0xF0u; (*(pucSFDataLenBuf) |= (xTxSFDataLen));}while(0u)
+#define SetTxFFDataLen(pucTxFFDataLenBuf, xTxFFDataLen)  do{ *(pucTxFFDataLenBuf + 0u) &= 0xF0u;\
+                                                             *(pucTxFFDataLenBuf + 0u) |= (uint8)((xTxFFDataLen) >> 8u);\
+                                                             *(pucTxFFDataLenBuf + 1u) |= (uint8)(xTxFFDataLen);\
+                                                            }while(0u)
+#define AddTxDataLen(xTxDataLen)         (gs_stCanTPTxDataInfo.stCanTpDataInfo.xPduDataLen += (xTxDataLen))
+#define SetTxSTmin()                     (gs_stCanTPTxDataInfo.xSTmin = CanTpTimeToCount(gs_xCanTPTxSTmin))
+#define SaveTxSTmin(xTxSTmin)            (gs_xCanTPTxSTmin = xTxSTmin)
+#define IsTxSTminTimeout()               ((0u == gs_stCanTPTxDataInfo.xSTmin) ? TRUE : FALSE)
+#define SetTxWaitFrameTime(xWaitTime)    do{ (gs_stCanTPTxDataInfo.xMaxWatiTimeout = CanTpTimeToCount(xWaitTime));\
+                                             gs_CANTPTxMsgMaxWaitTime = gs_stCanTPTxDataInfo.xMaxWatiTimeout;\
+                                           }while(0u);
 
-/*Is wait conective frame timeout?*/
-#define IsWaitCFTimeout() ((0u == gs_stCanTPRxDataInfo.xMaxWatiTimeout) ? TRUE : FALSE)
+#define TXFrame_SetTxMsgWaitTime(xWaitTime)   SetTxWaitFrameTime(xWaitTime)
+#define TXFrame_SetRxMsgWaitTime(xWaitTime)   SetTxWaitFrameTime(xWaitTime)
+#define IsTxWaitFrameTimeout()                ((0u == gs_stCanTPTxDataInfo.xMaxWatiTimeout) ? TRUE : FALSE)
+#define IsTxMsgWaittingFrameTimeout()         ((0u == gs_CANTPTxMsgMaxWaitTime) ? TRUE : FALSE)
+#define GetFS(ucFlowStaus, pxFlowStatusBuf)   (*(pxFlowStatusBuf) = (ucFlowStaus) & 0x0Fu)
+#define SetTxSN(pucSNBuf)                     (*(pucSNBuf) = gs_stCanTPTxDataInfo.ucSN | (*(pucSNBuf) & 0xF0u))
 
-/*Is block sizeo overflow*/
-#define IsRxBlockSizeOverflow() (((0u != g_stCANUdsNetLayerCfgInfo.xBlockSize) &&\
-                                 (gs_stCanTPRxDataInfo.ucBlockSize >= g_stCANUdsNetLayerCfgInfo.xBlockSize))\
-                                ? TRUE : FALSE)
+#define AddTxSN()                        do{gs_stCanTPTxDataInfo.ucSN++;\
+                                            if(gs_stCanTPTxDataInfo.ucSN > 0x0Fu){gs_stCanTPTxDataInfo.ucSN = 0u;}\
+                                          }while(0u)
 
-/*Is transmitted data len overflow max SF?*/
-#define IsTxDataLenOverflowSF() ((gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen > TX_SF_DATA_MAX_LEN) ? TRUE : FALSE)
-
-/*Is transmitted data less than min?*/
-#define IsTxDataLenLessSF() ((0u == gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen) ? TRUE : FALSE)
-
-/*set transmitted SF data len*/
-#define SetTxSFDataLen(pucSFDataLenBuf, xTxSFDataLen) \
-do{\
-    *(pucSFDataLenBuf) &= 0xF0u;\
-    (*(pucSFDataLenBuf) |= (xTxSFDataLen));\
-}while(0u)
-
-/*set transmitted FF data len*/
-#define SetTxFFDataLen(pucTxFFDataLenBuf, xTxFFDataLen)\
-do{\
-    *(pucTxFFDataLenBuf + 0u) &= 0xF0u;\
-    *(pucTxFFDataLenBuf + 0u) |= (uint8)((xTxFFDataLen) >> 8u);\
-    *(pucTxFFDataLenBuf + 1u) |= (uint8)(xTxFFDataLen);\
-}while(0u)
-
-/*add Tx data len*/
-#define AddTxDataLen(xTxDataLen) (gs_stCanTPTxDataInfo.stCanTpDataInfo.xPduDataLen += (xTxDataLen))
-
-/*set tx STmin */
-#define SetTxSTmin() (gs_stCanTPTxDataInfo.xSTmin = CanTpTimeToCount(gs_xCanTPTxSTmin))
-
-/*save Tx STmin*/
-#define SaveTxSTmin(xTxSTmin) (gs_xCanTPTxSTmin = xTxSTmin)
-
-/*Is Tx STmin timeout?*/
-#define IsTxSTminTimeout() ((0u == gs_stCanTPTxDataInfo.xSTmin) ? TRUE : FALSE)
-
-/*Set tx wait frame time*/
-#define SetTxWaitFrameTime(xWaitTime) do{\
-    (gs_stCanTPTxDataInfo.xMaxWatiTimeout = CanTpTimeToCount(xWaitTime));\
-    gs_CANTPTxMsgMaxWaitTime = gs_stCanTPTxDataInfo.xMaxWatiTimeout;\
-}while(0u);
-
-
-/*TX frame set tx message wait time*/
-#define TXFrame_SetTxMsgWaitTime(xWaitTime) SetTxWaitFrameTime(xWaitTime)
-
-/*TX frame set Tx message wait time*/
-#define TXFrame_SetRxMsgWaitTime(xWaitTime) SetTxWaitFrameTime(xWaitTime)
-
-/*Is Tx wait frame timeout?*/
-#define IsTxWaitFrameTimeout() ((0u == gs_stCanTPTxDataInfo.xMaxWatiTimeout) ? TRUE : FALSE)
-
-/*Is Tx message wait frame timeout?*/
-#define IsTxMsgWaittingFrameTimeout() ((0u == gs_CANTPTxMsgMaxWaitTime) ? TRUE : FALSE)
-
-/*Get FS*/
-#define GetFS(ucFlowStaus, pxFlowStatusBuf) (*(pxFlowStatusBuf) = (ucFlowStaus) & 0x0Fu)
-
-/*set tx SN*/
-#define SetTxSN(pucSNBuf) (*(pucSNBuf) = gs_stCanTPTxDataInfo.ucSN | (*(pucSNBuf) & 0xF0u))
-
-/*Add Tx SN*/
-#define AddTxSN()\
-do{\
-    gs_stCanTPTxDataInfo.ucSN++;\
-    if(gs_stCanTPTxDataInfo.ucSN > 0x0Fu)\
-    {\
-        gs_stCanTPTxDataInfo.ucSN = 0u;\
-    }\
-}while(0u)
-
-/*Is Tx all*/
-#define IsTxAll() ((gs_stCanTPTxDataInfo.stCanTpDataInfo.xPduDataLen >= \
-                    gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen) ? TRUE : FALSE)
-
-/*save received message ID*/
-#define SaveRxMsgId(xMsgId) (gs_stCanTPRxDataInfo.stCanTpDataInfo.xCanTpId = (xMsgId))
-
-/*clear can tp Rx msg buf*/
-#define ClearCanTpRxMsgBuf(pMsgInfo)\
-do{\
-    (pMsgInfo)->isFree = TRUE;\
-    (pMsgInfo)->msgLen = 0u;\
-    (pMsgInfo)->xMsgId = 0u;\
-}while(0u)
-
-/*get cur CAN TP status*/
-#define GetCurCANTPStatus() (gs_eCanTpWorkStatus)
-
-/*set cur CAN TP status*/
-#define SetCurCANTPSatus(status) \
-do{\
-    gs_eCanTpWorkStatus = status;\
-}while(0u)
-
-/*get cur CAN TP status PTR*/
-#define GetCurCANTPStatusPtr() (&gs_eCanTpWorkStatus)
+#define IsTxAll()                        ((gs_stCanTPTxDataInfo.stCanTpDataInfo.xPduDataLen >= gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen) ? TRUE : FALSE)
+#define SaveRxMsgId(xMsgId)              (gs_stCanTPRxDataInfo.stCanTpDataInfo.xCanTpId = (xMsgId))
+#define ClearCanTpRxMsgBuf(pMsgInfo)     do{(pMsgInfo)->isFree = TRUE; (pMsgInfo)->msgLen = 0u; (pMsgInfo)->xMsgId = 0u;}while(0u)
+#define GetCurCANTPStatus()              (gs_eCanTpWorkStatus)
+#define SetCurCANTPSatus(status)         do{gs_eCanTpWorkStatus = status;}while(0u)
+#define GetCurCANTPStatusPtr()           (&gs_eCanTpWorkStatus)
  /*********************************************************/
 static void CANTP_DoTransmitFCCallBack(void);
 static void CANTP_DoTransmitSFCallBack(void);
@@ -225,7 +113,7 @@ static tN_Result CANTP_DoTransmitFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
 static tN_Result CANTP_DoReceiveFC(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
 static tN_Result CANTP_DoTransmitCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
 static tN_Result CANTP_DoWaittingTxMsg(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus);
-static uint8 CANTP_CopyAFrameDataInRxFifo(const uint32 i_xRxCanID, const uint16 i_xRxDataLen,const uint8 *i_pDataBuf );
+static uint8 CANTP_CopyAFrameDataInRxFifo(const uint32 i_xRxCanID, const uint32 i_xRxDataLen,const uint8 *i_pDataBuf );
 static uint8 CANTP_CopyAFrameFromFifoToBuf(uint32 *o_pxTxCanID, uint32 *o_pTxDataLen, uint8 *o_pDataBuf);
 static uint8 CANTP_SetFrameType(const tCANType i_eCANType, const tNetWorkFrameType i_eFrameType, uint8 *o_pFrameType);
 static boolean CANTP_SetTxSFDataLen(const tCANType i_eCANType, const uint32 i_txSFDataLen, uint8 *o_pSFMsgBuf);
@@ -387,11 +275,11 @@ void CANTP_MainFun(void)
 
 /*received a can tp frame, copy these data in UDS RX fifo.*/
 static uint8 CANTP_CopyAFrameDataInRxFifo(const uint32 i_xRxCanID,
-                                                    const uint16 i_xRxDataLen,
+                                                    const uint32 i_xRxDataLen,
                                                     const uint8 *i_pDataBuf)
 {
     tErroCode eStatus;
-    uint16 xCanWriteLen = 0u;
+    uint32 xCanWriteLen = 0u;
 
     tUDSAndTPExchangeMsgInfo exchangeMsgInfo;
 
@@ -431,12 +319,10 @@ static uint8 CANTP_CopyAFrameDataInRxFifo(const uint32 i_xRxCanID,
 }
 
 /*uds transmitted a application frame data, copy these data in TX fifo.*/
-static uint8 CANTP_CopyAFrameFromFifoToBuf(uint32 *o_pxTxCanID,
-                                                       uint32 *o_pTxDataLen,
-                                                       uint8 *o_pDataBuf)
+static uint8 CANTP_CopyAFrameFromFifoToBuf(uint32 *o_pxTxCanID,uint32 *o_pTxDataLen,uint8 *o_pDataBuf)
 {
     tErroCode eStatus;
-    uint16 xRealReadLen = 0u;
+    uint32 xRealReadLen = 0u;
     tUDSAndTPExchangeMsgInfo exchangeMsgInfo;
 
     ASSERT(NULL_PTR == o_pxTxCanID);
@@ -484,7 +370,7 @@ static uint8 CANTP_CopyAFrameFromFifoToBuf(uint32 *o_pxTxCanID,
 /*can tp IDLE*/
 static tN_Result CANTP_DoCanTpIdle(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus)
 {
-    uint8 txDataLen = (uint8)gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen;
+    uint16 txDataLen = (uint8)gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen;
 
     ASSERT(NULL_PTR == m_peNextStatus);
 
@@ -523,7 +409,7 @@ static tN_Result CANTP_DoCanTpIdle(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
 
         /*Judge have message can will tx.*/
         if(TRUE == CANTP_CopyAFrameFromFifoToBuf(&gs_stCanTPTxDataInfo.stCanTpDataInfo.xCanTpId,
-                                          &txDataLen,
+                                         (uint32 *)&txDataLen,
                                           gs_stCanTPTxDataInfo.stCanTpDataInfo.aDataBuf))
         {
             gs_stCanTPTxDataInfo.stCanTpDataInfo.xFFDataLen = txDataLen;
@@ -561,7 +447,7 @@ static tN_Result CANTP_DoReceiveSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_
     }
 
     /*Get RX frame: SF length*/
-    if(TRUE != GetRXSFFrameMsgLength(m_stMsgInfo->msgLen, m_stMsgInfo->aMsgBuf, &SFLen))
+    if(TRUE != GetRXSFFrameMsgLength((uint32)(m_stMsgInfo->msgLen), m_stMsgInfo->aMsgBuf, &SFLen))
     {
         print("SF:GetRXSFFrameMsgLength failed!\n");
 
@@ -850,7 +736,7 @@ static tN_Result CANTP_DoTransmitSF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
 {
     uint8 aDataBuf[DATA_LEN] = {0u};
     uint32 txLen = 0u;
-    tCANType CANType = CANTP_STANDARD;
+   // tCANType CANType = CANTP_STANDARD;
 
     ASSERT(NULL_PTR == m_peNextStatus);
 
@@ -956,7 +842,7 @@ static tN_Result CANTP_DoTransmitFF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m
 {
     uint8 aDataBuf[DATA_LEN] = {0u};
     uint32 txMsgLen = 0u;
-    tCANType CANType = CANTP_STANDARD;
+   // tCANType CANType = CANTP_STANDARD;
 
     ASSERT(NULL_PTR == m_peNextStatus);
 
@@ -1148,8 +1034,8 @@ static void CANTP_DoTransmitCFCallBack(void)
 static tN_Result CANTP_DoTransmitCF(tCanTpMsg * m_stMsgInfo, tCanTpWorkStatus *m_peNextStatus)
 {
     uint8 aTxDataBuf[DATA_LEN] = {0u};
-    uint8 txLen = 0u;
-    uint8 txAllLen = 0u;
+    uint32 txLen = 0u;
+    uint32 txAllLen = 0u;
     tCANType CANType = CANTP_STANDARD;
 
     ASSERT(NULL_PTR == m_peNextStatus);

@@ -1,20 +1,24 @@
 #include "uds_server.h"
 #include "uds_cfc.h"
-
-#define DOWLOAD_DATA_ADDR_LEN (4u)      /*dowload data addr len*/
-#define DOWLOAD_DATA_LEN (4u)           /*dowload data len*/
+#include "fl_cfc.h"
+#define DOWLOAD_DATA_ADDR_LEN    (4u)         /*dowload data addr len*/
+#define DOWLOAD_DATA_LEN         (4u)         /*dowload data len*/
 
 /*support function/physical ID request*/
-#define ERRO_REQUEST_ID (0u)             /*received ID failled*/
-#define SUPPORT_PHYSICAL_ADDR (1u << 0u) /*support physical ID request */
-#define SUPPORT_FUNCTION_ADDR (1u << 1u)  /*support function ID request*/
+#define ERRO_REQUEST_ID          (0u)          /*received ID failled*/
+#define SUPPORT_PHYSICAL_ADDR    (1u << 0u)    /*support physical ID request */
+#define SUPPORT_FUNCTION_ADDR    (1u << 1u)    /*support function ID request*/
 /***********************UDS Information Global function************************/
 /*set current request id  SUPPORT_PHYSICAL_ADDR/SUPPORT_FUNCTION_ADDR */
-#define UDS_SetRequestIdType(xRequestIDType) (gs_stUdsInfo.requsetIdMode = (xRequestIDType))
+#define UDS_SetRequestIdType(xRequestIDType)   (gs_stUdsInfo.requsetIdMode = (xRequestIDType))
 /*uds app time to count*/
-#define UdsAppTimeToCount(xTime) ((xTime) / gs_stUdsAppCfg.CalledPeriod)
+#define UdsAppTimeToCount(xTime)    ((xTime) / gs_stUdsAppCfg.CalledPeriod)
 /*********************************************************/
+/*download data info*/
+static tDowloadDataInfo gs_stDowloadDataInfo = {0u, 0u};
 
+/* received block number */
+static uint8 gs_RxBlockNum = 0u;
 /*Get bootloader version*/
 const static uint8 gs_aGetVersion[] = {0x31u, 0x01, 0x03, 0xFFu};
 
@@ -102,11 +106,11 @@ const static tUDSService gs_astUDSService[] =
     },
     /*security access*/
     {
-          0x27u,
-          PROGRAM_SESSION,
-          SUPPORT_PHYSICAL_ADDR,
-          NONE_SECURITY,
-          UDS_SecurityAccess_0x27
+        0x27u,
+        PROGRAM_SESSION,
+        SUPPORT_PHYSICAL_ADDR,
+        NONE_SECURITY,
+        UDS_SecurityAccess_0x27
     },
 
     /*communication control*/
@@ -348,7 +352,7 @@ static void UDS_SecurityAccess_0x27(struct UDSServiceInfo* i_pstUDSServiceInfo, 
 
            // if(TRUE == ret)
            // {
-           //     UDS_AppMemcopy(s_aSeedBuf, AES_SEED_LEN, &m_pstPDUMsg->aDataBuf[2u]);
+           //     memcopy(s_aSeedBuf,&m_pstPDUMsg->aDataBuf[2u], AES_SEED_LEN);
            //     m_pstPDUMsg->xDataLen = 2u + AES_SEED_LEN;
           //  }
           //  else
@@ -367,7 +371,7 @@ static void UDS_SecurityAccess_0x27(struct UDSServiceInfo* i_pstUDSServiceInfo, 
 
             //    m_pstPDUMsg->xDataLen = 2u;
 
-            //   UDS_AppMemset(0x1u, sizeof(s_aSeedBuf), s_aSeedBuf);
+            //    memset(0x1u,s_aSeedBuf, sizeof(s_aSeedBuf));
 
             //    UDS_SetSecurityLevel(SECURITY_LEVEL_1);
            // }
@@ -566,7 +570,6 @@ static void UDS_RoutineControl_0x31(struct UDSServiceInfo* i_pstUDSServiceInfo, 
 
            m_pstPDUMsg->xDataLen = offset;
        }
-
        else
        {
            /*don't have this routine control ID*/
@@ -607,7 +610,7 @@ static void UDS_TesterPresent_0x3E(struct UDSServiceInfo* i_pstUDSServiceInfo, t
 /*request download*/
 static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
-    uint8 Index = 0u;
+   uint8 Index = 0u;
     uint8 Ret = TRUE;
 
     ASSERT(NULL_PTR == m_pstPDUMsg);
@@ -623,56 +626,56 @@ static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo,
     if(TRUE == Ret)
     {
         /*get data addr */
-      //  gs_stDowloadDataInfo.startAddr = 0u;
-      //  for(Index = 0u; Index < DOWLOAD_DATA_ADDR_LEN; Index++)
-      //  {
-      //      gs_stDowloadDataInfo.startAddr <<= 8u;
+        gs_stDowloadDataInfo.startAddr = 0u;
+        for(Index = 0u; Index < DOWLOAD_DATA_ADDR_LEN; Index++)
+        {
+            gs_stDowloadDataInfo.startAddr <<= 8u;
             /* 3u = N_PCI(1) + SID34(1) + dataFormatldentifier(1) */
-      //      gs_stDowloadDataInfo.startAddr |= m_pstPDUMsg->aDataBuf[Index + 3u];
-     //   }
+            gs_stDowloadDataInfo.startAddr |= m_pstPDUMsg->aDataBuf[Index + 3u];
+        }
 
         /*get data len*/
-     //   gs_stDowloadDataInfo.dataLen = 0u;
-      //  for(Index = 0u; Index < DOWLOAD_DATA_LEN; Index++)
-    //    {
-    //        gs_stDowloadDataInfo.dataLen <<= 8u;
-     //       gs_stDowloadDataInfo.dataLen |= m_pstPDUMsg->aDataBuf[Index + 7u];
-     //   }
+        gs_stDowloadDataInfo.dataLen = 0u;
+        for(Index = 0u; Index < DOWLOAD_DATA_LEN; Index++)
+        {
+            gs_stDowloadDataInfo.dataLen <<= 8u;
+            gs_stDowloadDataInfo.dataLen |= m_pstPDUMsg->aDataBuf[Index + 7u];
+        }
     }
 
     /*Is download data  addr  and len valid?*/
-  //  if(((TRUE != UDS_IsDownloadDataAddrValid(gs_stDowloadDataInfo.startAddr, gs_stDowloadDataInfo.dataLen))) ||
-  //      (TRUE != Ret))
-  //  {
-  //      UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, ROOR, m_pstPDUMsg);
+    if(((TRUE != UDS_IsDownloadDataAddrValid(gs_stDowloadDataInfo.startAddr, gs_stDowloadDataInfo.dataLen))) ||
+		(TRUE != Ret))
+    {
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, ROOR, m_pstPDUMsg);
 
-  //      Ret = FALSE;
-  //  }
+        Ret = FALSE;
+    }
 
-  //  if(TRUE == Ret)
-  //  {
+    if(TRUE == Ret)
+    {
         /*set wait transfer data step(0x34 service)*/
-   //     Flash_SetNextDownloadStep(FL_TRANSFER_STEP);
+        Flash_SetNextDownloadStep(FL_TRANSFER_STEP);
 
         /*save received program addr and data len*/
-   //     Flash_SaveDownloadDataInfo(gs_stDowloadDataInfo.startAddr, gs_stDowloadDataInfo.dataLen);
+        Flash_SaveDownloadDataInfo(gs_stDowloadDataInfo.startAddr, gs_stDowloadDataInfo.dataLen);
 
         /*fill postive message*/
-   //     m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
-   //     m_pstPDUMsg->aDataBuf[1u] = 0x10u;
-   //     m_pstPDUMsg->aDataBuf[2u] = 0x80u;
-   //     m_pstPDUMsg->xDataLen = 3u;
+        m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+        m_pstPDUMsg->aDataBuf[1u] = 0x10u;
+        m_pstPDUMsg->aDataBuf[2u] = 0x80u;
+        m_pstPDUMsg->xDataLen = 3u;
 
         /*set wait received block number*/
-    //    gs_RxBlockNum = 1u;
- //   }
- //   else
-  //  {
-   //     Flash_InitDowloadInfo();
+        gs_RxBlockNum = 1u;
+    }
+    else
+    {
+        Flash_InitDowloadInfo();
 
         /*set request transfer data step(0x34 service)*/
-    //    Flash_SetNextDownloadStep(FL_REQUEST_STEP);
-  //  }
+        Flash_SetNextDownloadStep(FL_REQUEST_STEP);
+    }
 }
 
 /*transfer data*/
@@ -684,63 +687,63 @@ static void UDS_TransferData_0x36(struct UDSServiceInfo* i_pstUDSServiceInfo, tU
     ASSERT(NULL_PTR == i_pstUDSServiceInfo);
 
     /*request sequence erro*/
-  //  if((FL_TRANSFER_STEP != Flash_GetCurDownloadStep()) && (TRUE == Ret))
-  //  {
-  //      Ret = FALSE;
-
-   //     UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
-   // }
-
-  //  if((gs_RxBlockNum != m_pstPDUMsg->aDataBuf[1u]) && (TRUE == Ret))
-  //  {
+    if((FL_TRANSFER_STEP != Flash_GetCurDownloadStep()) && (TRUE == Ret))
+    {
         Ret = FALSE;
-//
-   //     /*received data is not wait block number*/
-        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
-  //  }
 
-   // gs_RxBlockNum++;
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
+    }
+
+    if((gs_RxBlockNum != m_pstPDUMsg->aDataBuf[1u]) && (TRUE == Ret))
+    {
+        Ret = FALSE;
+
+        /*received data is not wait block number*/
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
+    }
+
+    gs_RxBlockNum++;
 
     /*copy flash data in flash area*/
-  //  if((TRUE != Flash_ProgramRegion(gs_stDowloadDataInfo.startAddr,
-   //                                 &m_pstPDUMsg->aDataBuf[2u],
-   //                                 (m_pstPDUMsg->xDataLen - 2u))) && (TRUE == Ret))
-   // {
-   //     Ret = FALSE;
+    if((TRUE != Flash_ProgramRegion(gs_stDowloadDataInfo.startAddr,
+                                    &m_pstPDUMsg->aDataBuf[2u], 
+                                    (m_pstPDUMsg->xDataLen - 2u))) && (TRUE == Ret))
+    {
+        Ret = FALSE;
 
         /*saved data and information failled!*/
-    //    UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, CNC, m_pstPDUMsg);
-   // }
-  //  else
-  //  {
-   //     gs_stDowloadDataInfo.startAddr += (m_pstPDUMsg->xDataLen - 2u);
-  //      gs_stDowloadDataInfo.dataLen -= (m_pstPDUMsg->xDataLen - 2u);
-  //  }
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, CNC, m_pstPDUMsg);
+    }
+    else
+    {
+        gs_stDowloadDataInfo.startAddr += (m_pstPDUMsg->xDataLen - 2u);
+        gs_stDowloadDataInfo.dataLen -= (m_pstPDUMsg->xDataLen - 2u);
+    }
 
     /*received all data*/
-  //  if((0u == gs_stDowloadDataInfo.dataLen) && (TRUE == Ret))
-  //  {
-   //     gs_RxBlockNum = 0u;
+    if((0u == gs_stDowloadDataInfo.dataLen) && (TRUE == Ret))
+    {
+        gs_RxBlockNum = 0u;
 
         /*set wait exit transfer step(0x37 service)*/
-   //     Flash_SetNextDownloadStep(FL_EXIT_TRANSFER_STEP);
-   // }
+        Flash_SetNextDownloadStep(FL_EXIT_TRANSFER_STEP);
+    }
 
-  //  if(TRUE == Ret)
-   // {
+    if(TRUE == Ret)
+    {
         /*tranmitted postive message.*/
-   //     m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
-    //    m_pstPDUMsg->xDataLen = 4u;
-   // }
-   // else
-   // {
-   //     Flash_InitDowloadInfo();
+        m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+        m_pstPDUMsg->xDataLen = 4u;
+    }
+    else
+    {
+        Flash_InitDowloadInfo();
 
         /*set request transfer data step(0x34 service)*/
-    //    Flash_SetNextDownloadStep(FL_REQUEST_STEP);
+        Flash_SetNextDownloadStep(FL_REQUEST_STEP);
 
-    //    gs_RxBlockNum = 0u;
-   // }
+        gs_RxBlockNum = 0u;
+    }
 }
 /*request transfer exit*/
 static void UDS_RequestTransferExit_0x37(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
@@ -750,25 +753,25 @@ static void UDS_RequestTransferExit_0x37(struct UDSServiceInfo* i_pstUDSServiceI
     ASSERT(NULL_PTR == m_pstPDUMsg);
     ASSERT(NULL_PTR == i_pstUDSServiceInfo);
 
- //   if(FL_EXIT_TRANSFER_STEP != Flash_GetCurDownloadStep())
-  //  {
-  //      Ret = FALSE;
+    if(FL_EXIT_TRANSFER_STEP != Flash_GetCurDownloadStep())
+    {
+        Ret = FALSE;
 
-  //      UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
-  //  }
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
+    }
 
-  //  if(TRUE == Ret)
-  //  {
-  //      Flash_SetNextDownloadStep(FL_CHECKSUM_STEP);
+    if(TRUE == Ret)
+    {
+        Flash_SetNextDownloadStep(FL_CHECKSUM_STEP);
 
         /*tranmitted postive message.*/
-   //     m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
-   //     m_pstPDUMsg->xDataLen = 1u;
-  //  }
-   // else
-  //  {
-  //      Flash_InitDowloadInfo();
-   // }
+        m_pstPDUMsg->aDataBuf[0u] = i_pstUDSServiceInfo->serNum + 0x40u;
+        m_pstPDUMsg->xDataLen = 1u;
+    }
+    else
+    {
+        Flash_InitDowloadInfo();
+    }
 }
 
 
@@ -1021,8 +1024,6 @@ void UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint8))
 }
 
 /*********************************************************/
-/**********************UDS service other module call function realizing************************/
-
 /*transmitted confirm message callback*/
 static void UDS_TXConfrimMsgCallback(uint8 i_status)
 {
@@ -1064,7 +1065,7 @@ static uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,
     ASSERT(NULL_PTR == i_pReceivedKey);
     ASSERT(NULL_PTR == i_pTxSeed);
 
-    UDS_ALG_HAL_DecryptData(i_pReceivedKey, KeyLen, aPlainText);
+    UDS_ALG_HAL_DecryptData(i_pReceivedKey,(uint32) KeyLen, aPlainText);
 
     index = 0u;
     while(index < AES_SEED_LEN)

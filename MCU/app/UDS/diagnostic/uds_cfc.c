@@ -7,11 +7,11 @@
 
 
 /*erase memory routine cotnrol ID*/
-const static uint8 gs_aEraseMemoryRoutineControlId[] = {0x31u, 0x01u, 0xFFu, 0x00u};
+const static uint8 gs_aEraseMemoryRoutineControlId[]  =  {0x31u, 0x01u, 0xFFu, 0x00u};
 /*check sum routine control ID*/
-const static uint8 gs_aCheckSumRoutineControlId[] = {0x31u, 0x01u, 0x02u, 0x02u};
+const static uint8 gs_aCheckSumRoutineControlId[]     =  {0x31u, 0x01u, 0x02u, 0x02u};
 /*check programming dependency*/
-const static uint8 gs_aCheckProgrammingDependencyId[] = {0x31u, 0x01u, 0xFFu, 0x01u};
+const static uint8 gs_aCheckProgrammingDependencyId[] =  {0x31u, 0x01u, 0xFFu, 0x01u};
 
 /*Get bootloader version*/
 const static uint8 gs_aGetVersion[] = {0x31u, 0x01, 0x03, 0xFFu};

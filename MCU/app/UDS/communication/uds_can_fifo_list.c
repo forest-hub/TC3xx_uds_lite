@@ -10,13 +10,13 @@
 /**********************************************************/
 
 /*********************Marco define***************************/
-#define STRUCT_LEN                              (20u) /*every fifo struct used space*/
-#define TOTAL_BYTES                             ((STRUCT_LEN) * (FIFO_NUM) + TOTAL_FIFO_BYTES) /*config total bytes*/
+#define STRUCT_LEN                               (20u) /*every fifo struct used space*/
+#define TOTAL_BYTES                              ((STRUCT_LEN) * (FIFO_NUM) + TOTAL_FIFO_BYTES) /*config total bytes*/
 /**********************************************************/
 
 /*********************Static value define**********************/
 static unsigned char gs_ucFifo[TOTAL_BYTES] =   {0};           /*total fifo len*/
-static tFifoInfo *gs_pstListHeader = (tFifoInfo *)0u;        /*manage list fifo header*/ 
+static tFifoInfo *gs_pstListHeader = (tFifoInfo *)0u;          /*manage list fifo header*/
 static uint16 gs_xCleanFifoLen = TOTAL_BYTES;                  /*can used fifo len*/
 
 /**********************************************************
@@ -25,19 +25,15 @@ static uint16 gs_xCleanFifoLen = TOTAL_BYTES;                  /*can used fifo l
 ** Modify Paramerer	:	m_pxCounter need modify counter  Read/Write counter
 ***********************************************************/
 #define AddCounter(i_xFifoLen, m_pxCounter)\
-do{\
-	(*(m_pxCounter))++;\
+do{ (*(m_pxCounter))++;\
 	if(*(m_pxCounter) >= (i_xFifoLen))\
 	{\
 		*(m_pxCounter) -= (i_xFifoLen);\
 	}\
-}while(0)
+    }while(0)
 
 /*add write counter used in write fifo*/
-#define AddWriteCounter(m_pstNode)\
-do{\
-	AddCounter(m_pstNode->xFifoLen, &(m_pstNode->xWriteAddr));\
-}while(0)
+#define AddWriteCounter(m_pstNode)  do{AddCounter(m_pstNode->xFifoLen, &(m_pstNode->xWriteAddr));}while(0)
 
 /*Check and change current  write FIFO status*/
 #define CheckAndChangeWriteFIFOStatus(m_pstNode) \
@@ -55,10 +51,7 @@ do{\
 }while(0u)
 
 /*add read counter used in read fifo*/
-#define AddReadCounter(m_pstNode)\
-do{\
-	AddCounter(m_pstNode->xFifoLen, &(m_pstNode->xReadAddr));\
-}while(0)
+#define AddReadCounter(m_pstNode)   do{AddCounter(m_pstNode->xFifoLen, &(m_pstNode->xReadAddr));}while(0)
 
 /*Check and change current read FIFO status*/
 #define CheckAndChangeReadFIFOStatus(m_pstNode) \
@@ -75,14 +68,8 @@ do{\
 	EnableAllInterrupts();\
 }while(0u)
 
-
 /*get fifo list header*/
-#define GetListHeader(o_psListHeader)\
-do{\
-	(o_psListHeader) = gs_pstListHeader;\
-}while(0)
-
-/**********************************************************/
+#define GetListHeader(o_psListHeader)   do{(o_psListHeader) = gs_pstListHeader; }while(0)
 
 /*********************Static function define*******************/
 static void AddInList(tFifoInfo *i_pstFifoNode, tFifoInfo **m_ppstHeader, tErroCode *o_peAddStatus);
@@ -167,14 +154,11 @@ void ApplyFifo(uint16 i_xApplyFifoLen, uint16 i_xFifoId, tErroCode *o_peApplySta
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-void WriteDataInFifo(uint16 i_xFifoId,
-					   unsigned char *i_pucWriteDataBuf, 
-					   uint16 i_xWriteDatalen,
-					   tErroCode *o_peWriteStatus)
+void WriteDataInFifo(uint16 i_xFifoId,unsigned char *i_pucWriteDataBuf, uint32 i_xWriteDatalen,tErroCode *o_peWriteStatus)
 {
 	tFifoInfo *pstNode = (tFifoInfo *)0u;
 	uint16 xIndex = 0u;
-	uint16 xCanWriteTotal = 0u;
+	uint32 xCanWriteTotal = 0u;
 	
 #ifdef SAFE_LEVEL_O3
 	if((tErroCode *)0u == o_peWriteStatus)
@@ -235,14 +219,11 @@ void WriteDataInFifo(uint16 i_xFifoId,
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-void ReadDataFromFifo(uint16 i_xFifoId, uint16 i_xNeedReadDataLen,
-						   unsigned char *o_pucReadDataBuf,
-						   uint16 *o_pxReadLen,
-						   tErroCode *o_peReadStatus)
+void ReadDataFromFifo(uint16 i_xFifoId, uint32 i_xNeedReadDataLen,unsigned char *o_pucReadDataBuf,uint32 *o_pxReadLen,tErroCode *o_peReadStatus)
 {	
 	tFifoInfo *pstNode = (tFifoInfo *)0u;
 	uint16 xIndex = 0u;
-	uint16 xCanReadTotal = 0u;
+	uint32 xCanReadTotal = 0u;
 	
 #ifdef SAFE_LEVEL_O3
 	if((tErroCode *)0u == o_peReadStatus)
@@ -251,7 +232,7 @@ void ReadDataFromFifo(uint16 i_xFifoId, uint16 i_xNeedReadDataLen,
 	}
 
 	if((unsigned char *)0u == o_pucReadDataBuf ||
-		(uint16 *)0u == o_pxReadLen ||
+		(uint32 *)0u == o_pxReadLen ||
 		(uint16)0u == i_xNeedReadDataLen )
 	{
 		*o_peReadStatus = ERRO_POINTER_NULL;
@@ -299,7 +280,7 @@ void ReadDataFromFifo(uint16 i_xFifoId, uint16 i_xNeedReadDataLen,
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-void GetCanReadLen(uint16 i_xFifoId, uint16 *o_pxCanReadLen, tErroCode *o_peGetStatus)
+void GetCanReadLen(uint16 i_xFifoId, uint32 *o_pxCanReadLen, tErroCode *o_peGetStatus)
 {
 	tFifoInfo *pstNode = (tFifoInfo *)0u;
 
@@ -309,7 +290,7 @@ void GetCanReadLen(uint16 i_xFifoId, uint16 *o_pxCanReadLen, tErroCode *o_peGetS
 		return;
 	}
 
-	if((uint16 *)0u == o_pxCanReadLen)
+	if((uint32 *)0u == o_pxCanReadLen)
 	{
 		*o_peGetStatus = ERRO_POINTER_NULL;
 
@@ -353,7 +334,7 @@ void GetCanReadLen(uint16 i_xFifoId, uint16 *o_pxCanReadLen, tErroCode *o_peGetS
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
-void GetCanWriteLen(uint16 i_xFifoId, uint16 *o_pxCanWriteLen, tErroCode *o_peGetStatus)
+void GetCanWriteLen(uint16 i_xFifoId, uint32 *o_pxCanWriteLen, tErroCode *o_peGetStatus)
 {	
 	tFifoInfo *pstNode = (tFifoInfo *)0u;
 
@@ -363,7 +344,7 @@ void GetCanWriteLen(uint16 i_xFifoId, uint16 *o_pxCanWriteLen, tErroCode *o_peGe
 		return;
 	}
 
-	if((uint16 *)0u == o_pxCanWriteLen)
+	if((uint32 *)0u == o_pxCanWriteLen)
 	{
 		*o_peGetStatus = ERRO_POINTER_NULL;
 

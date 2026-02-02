@@ -23,16 +23,16 @@ typedef enum
 
 typedef enum
 {
-    IDLE,      /*idle*/
-    RX_SF,   /*wait signle frame*/
-    RX_FF,   /*wait first frame*/
-    RX_FC,   /*wait flow control frame*/
-    RX_CF,   /*wait consective frame*/
+    IDLE,        /*idle*/
+    RX_SF,       /*wait signle frame*/
+    RX_FF,       /*wait first frame*/
+    RX_FC,       /*wait flow control frame*/
+    RX_CF,       /*wait consective frame*/
 
-    TX_SF,     /*tx signle frame*/
-    TX_FF,     /*tx first frame*/
-    TX_FC,     /*tx flow control*/
-    TX_CF,     /*tx consective frame*/
+    TX_SF,       /*tx signle frame*/
+    TX_FF,       /*tx first frame*/
+    TX_FC,       /*tx flow control*/
+    TX_CF,       /*tx consective frame*/
 
     WAITTING_TX, /*watting tx message*/
 
@@ -41,10 +41,10 @@ typedef enum
 
 typedef enum
 {
-    SF,        /*signle frame value*/
-    FF,        /*first frame value*/
-    CF,        /*consective frame value*/
-    FC         /*flow control value*/
+    SF,          /*signle frame value*/
+    FF,          /*first frame value*/
+    CF,          /*consective frame value*/
+    FC           /*flow control value*/
 }tNetWorkFrameType;
 
 typedef enum
@@ -86,21 +86,21 @@ typedef enum{
     CANTP_TX_MSG_IDLE = 0, /*CAN TP tx message idle*/
     CANTP_TX_MSG_SUCC,     /*CAN TP tx message successful*/
     CANTP_TX_MSG_FAIL,     /*CAN TP tx message fail*/
-    CANTP_TX_MSG_WAITTING /*CAN TP waitting tx message*/
+    CANTP_TX_MSG_WAITTING  /*CAN TP waitting tx message*/
 }tCanTPTxMsgStatus;
 
 typedef struct
 {
     uint32 xCanTpId;                    /*can tp message id*/
-    uint16 xPduDataLen;                 /*pdu data len(Rx/Tx data len)*/
-    uint16 xFFDataLen;                  /*Rx/Tx FF data len*/
+    uint32 xPduDataLen;                 /*pdu data len(Rx/Tx data len)*/
+    uint32 xFFDataLen;                  /*Rx/Tx FF data len*/
     uint8  aDataBuf[MAX_CF_DATA_LEN];   /*Rx/Tx data buf*/
 }tCanTpDataInfo;
 
 typedef struct
 {
-    uint8 ucSN;          /*SN*/
-    uint8 ucBlockSize;   /*Block size*/
+    uint8 ucSN;                /*SN*/
+    uint8 ucBlockSize;         /*Block size*/
     uint16 xSTmin;             /*STmin*/
     uint16 xMaxWatiTimeout;    /*timeout time*/
     tCanTpDataInfo stCanTpDataInfo;
@@ -108,10 +108,10 @@ typedef struct
 
 typedef struct
 {
-    uint8 isFree;            /*rx message status. TRUE = not received messag.*/
+    uint8 isFree;                      /*rx message status. TRUE = not received messag.*/
     uint32 xMsgId;                     /*received message id*/
-    uint8 msgLen;            /*received message len*/
-    uint8 aMsgBuf[MAX_CAN_DATA_LEN]; /*message data buf*/
+    uint8 msgLen;                      /*received message len*/
+    uint8 aMsgBuf[MAX_CAN_DATA_LEN];   /*message data buf*/
 }tCanTpMsg;
 
 typedef tN_Result (*tpfCanTpFun)(tCanTpMsg *, tCanTpWorkStatus *);

@@ -8,7 +8,7 @@ static tpfNetTxCallBack gs_pfTxMsgSuccessfulCallBack = NULL_PTR;
 
 
 static uint8 CANTP_TxMsg(const uint32 i_xTxId,
-							  const uint16 i_dataLen, 
+							  const uint32 i_dataLen,
 							  const uint8* i_pDataBuf, 
 							  const tpfNetTxCallBack i_pfNetTxCallBack,
 							  const uint32 i_txBlockingMaxtime);
@@ -51,12 +51,12 @@ const tUdsCANNetLayerCfg g_stCANUdsNetLayerCfgInfo =
 
 /*can tp tx message: there not use CAN driver TxFIFO, directly invoked CAN send function*/
 static uint8 CANTP_TxMsg(const uint32 i_xTxId,
-							  const uint16 i_dataLen, 
+							  const uint32 i_dataLen,
 							  const uint8* i_pDataBuf, 
 							  const tpfNetTxCallBack i_pfNetTxCallBack,
 							  const uint32 i_txBlockingMaxtime)
 {
-	uint16 xCanWriteDataLen = 0u;
+	uint32 xCanWriteDataLen = 0u;
 	tErroCode eStatus;
 	uint8 aMsgBuf[DATA_LEN] = {0};
 	tTPTxMsgHeader txMsgInfo;
@@ -112,8 +112,8 @@ static uint8 CANTP_RxMsg(uint32 * o_pxRxId,
 					  	 uint8 * o_pRxDataLen,
 						 uint8 *o_pRxBuf)
 {
-	uint16 xCanRxDataLen = 0u;
-	uint16 xReadDataLen = 0u;
+	uint32 xCanRxDataLen = 0u;
+	uint32 xReadDataLen = 0u;
 	tErroCode eStatus;
 	tRxMsgInfo stRxCanMsg = {0u};
 	uint8 ucIndex = 0u;
@@ -242,7 +242,7 @@ void CANTP_RegisterAbortTxMsg(const tpfAbortTxMsg i_pfAbortTxMsg)
 /*write data in CAN TP*/
 boolean CANTP_DriverWriteDataInCANTP(const uint32 i_RxID, const uint32 i_dataLen, const uint8 *i_pDataBuf)
 {
-	uint16 xCanWriteDataLen = 0u;
+	uint32 xCanWriteDataLen = 0u;
 	tErroCode eStatus;
 	tRxMsgInfo stRxCanMsg;
 	const uint32 headerLen = sizeof(stRxCanMsg.rxDataId) + sizeof(stRxCanMsg.rxDataLen);
@@ -276,7 +276,7 @@ boolean CANTP_DriverWriteDataInCANTP(const uint32 i_RxID, const uint32 i_dataLen
 boolean CANTP_DriverReadDataFromCANTP(const uint32 i_readDataLen, uint8 *o_pReadDataBuf, tTPTxMsgHeader *o_pstTxMsgHeader)
 {
 	boolean result = FALSE;
-	uint16 xCanRxDataLen = 0u;
+	uint32 xCanRxDataLen = 0u;
 	tErroCode eStatus;
 	tTPTxMsgHeader txMsgInfo;
 	const uint32 msgInfoLen = sizeof(tTPTxMsgHeader);

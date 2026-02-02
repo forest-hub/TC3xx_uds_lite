@@ -34,18 +34,18 @@ typedef enum
 {
     FIFO_EMPTY,           /*fifo empty*/
     FIFO_USING,           /*fifo using*/
-    FIFO_FULL            /*fifo full */
+    FIFO_FULL             /*fifo full */
 }tFifoStatus;
 
 typedef struct
 {
-    uint16 xOwnerId;                  /*owner fifo id*/
+    uint16 xOwnerId;                 /*owner fifo id*/
     uint16 xFifoLen;                 /*fifo len*/
     uint16 xReadAddr;                /*read fifo addr*/
     uint16 xWriteAddr;               /*write fifo addr*/
-    tFifoStatus eFifoStatus;       /*fifo status*/
-    unsigned char *pDataFifoAddr; /*data addr*/
-    void *pvNextFifoList;          /*next fifo list*/
+    tFifoStatus eFifoStatus;         /*fifo status*/
+    unsigned char *pDataFifoAddr;    /*data addr*/
+    void *pvNextFifoList;            /*next fifo list*/
 }tFifoInfo;
 
 /**********************************************************
@@ -77,7 +77,7 @@ typedef struct
 **********************************************************/
  void WriteDataInFifo(uint16 i_xFifoId,
 					   		  unsigned char *i_pucWriteDataBuf, 
-					   		uint16 i_xWriteDatalen,
+					   		uint32 i_xWriteDatalen,
 					          tErroCode *o_peWriteStatus);
 
 /**********************************************************
@@ -94,9 +94,9 @@ typedef struct
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
- void ReadDataFromFifo(uint16 i_xFifoId, uint16 i_xNeedReadDataLen,
+ void ReadDataFromFifo(uint16 i_xFifoId, uint32 i_xNeedReadDataLen,
 						   		  unsigned char *o_pucReadDataBuf,
-						  		  uint16 *o_pxReadLen,
+						  		  uint32 *o_pxReadLen,
 						   		  tErroCode *o_peReadStatus);
 
 /**********************************************************
@@ -111,7 +111,7 @@ typedef struct
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
- void GetCanReadLen(uint16 i_xFifoId, uint16 *o_pxCanReadLen, tErroCode *o_peGetStatus);
+ void GetCanReadLen(uint16 i_xFifoId, uint32 *o_pxCanReadLen, tErroCode *o_peGetStatus);
 
 /**********************************************************
 **	Function Name	:	GetCanWriteLen
@@ -125,7 +125,7 @@ typedef struct
 **	Author			:	Tomlin
 **	Created Date		:	2013-3-27
 **********************************************************/
- void GetCanWriteLen(uint16 i_xFifoId, uint16 *o_pxCanWriteLen, tErroCode *o_peGetStatus);
+ void GetCanWriteLen(uint16 i_xFifoId, uint32 *o_pxCanWriteLen, tErroCode *o_peGetStatus);
 
 /**********************************************************
 **	Function Name	:	ClearFIFO

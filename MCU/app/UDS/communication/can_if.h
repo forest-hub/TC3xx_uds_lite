@@ -11,12 +11,12 @@
 #include "user_config.h"
 
 #define MAX_MESSAGE_LEN (64u)
-#define RX_TP_QUEUE_ID ('R')  /*TP RX  FIFO ID*/
-#define TX_TP_QUEUE_ID ('T')  /*TP TX  FIFO ID*/
+#define RX_TP_QUEUE_ID ('R')     /*TP RX  FIFO ID*/
+#define TX_TP_QUEUE_ID ('T')     /*TP TX  FIFO ID*/
 
 /*defined FIFO length*/
-#define TX_TP_QUEUE_LEN (50u)  /*UDS send message to  TP max length*/
-#define RX_TP_QUEUE_LEN (150)  /*UDS read message from TP max length*/
+#define TX_TP_QUEUE_LEN (50u)   /*UDS send message to  TP max length*/
+#define RX_TP_QUEUE_LEN (150)   /*UDS read message from TP max length*/
 
 /*tx message call back*/
 typedef void (*tpfUDSTxMsgCallBack)(uint8);
@@ -26,16 +26,16 @@ typedef void (*tpfUDSTxMsgCallBack)(uint8);
 
 typedef struct
 {
-    uint32 rxDataLen;      /*RX can harware data len*/
-    uint32 rxDataId;      /*RX data len*/
+    uint32 rxDataLen;                    /*RX can harware data len*/
+    uint32 rxDataId;                     /*RX data len*/
     uint8 aucDataBuf[MAX_MESSAGE_LEN];   /*RX data buf*/
 }tRxMsgInfo;
 
 typedef struct
 {
-    uint32 msgID;                   /*message ID*/
-    uint32 dataLen;                 /*data length*/
-    tpfUDSTxMsgCallBack pfCallBack; /*call back*/
+    uint32 msgID;                       /*message ID*/
+    uint32 dataLen;                     /*data length*/
+    tpfUDSTxMsgCallBack pfCallBack;     /*call back*/
 }tUDSAndTPExchangeMsgInfo;
 
 typedef enum
@@ -47,9 +47,9 @@ typedef enum
 
 typedef struct
 {
-    uint32 TxMsgID;       /*Tx message ID*/
-    uint32 TxMsgLength;   /*TX message length*/
-    uint32 TxMsgCallBack; /*Tx message callback*/
+    uint32 TxMsgID;               /*Tx message ID*/
+    uint32 TxMsgLength;           /*TX message length*/
+    uint32 TxMsgCallBack;         /*Tx message callback*/
 }tTPTxMsgHeader;
 
 /*!

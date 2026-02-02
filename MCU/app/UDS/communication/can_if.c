@@ -144,7 +144,7 @@ boolean TP_ReadAFrameDataFromTP(uint32 *o_pRxMsgID,
                                       uint8 *o_pDataBuf)
 {
     tErroCode eStatus;
-    uint16 xReadDataLen = 0u;
+    uint32 xReadDataLen = 0u;
 
     tUDSAndTPExchangeMsgInfo exchangeMsgInfo;
 
@@ -196,7 +196,7 @@ boolean TP_WriteAFrameDataInTP(const uint32 i_TxMsgID,
                                      const uint8 *i_pDataBuf)
 {
     tErroCode eStatus;
-    uint16 xCanWriteLen = 0u;
+    uint32 xCanWriteLen = 0u;
     uint16 xWritDataLen = (uint16)i_xTxDataLen;
 
     tUDSAndTPExchangeMsgInfo exchangeMsgInfo;

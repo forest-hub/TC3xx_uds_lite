@@ -8,20 +8,12 @@
 #include "uds_cfc.h"
 /**********************************************************/
 
-/****************************Bootloader version***************************/
-#define APP_TYPE (0x0Au)
-#define APP_SW_VERSION {APP_TYPE, 0x01, 0x0, 0x00}
-#define APP_HW_VERSION {APP_TYPE, 0x01, 0x0, 0x00}
-/********************************************************************/
-
-
-
 typedef struct UDSServiceInfo
 {
-    uint8 serNum;     /*service num. eg 0x3e/0x87...*/
-    uint8 sessionMode;/*default session / program session / extend session*/
-    uint8 supReqMode; /*support physical / function addr*/
-    uint8 reqLevel;   /*request level.Lock/unlock*/
+    uint8 serNum;          /*service num. eg 0x3e/0x87...*/
+    uint8 sessionMode;     /*default session / program session / extend session*/
+    uint8 supReqMode;      /*support physical / function addr*/
+    uint8 reqLevel;        /*request level.Lock/unlock*/
     void (*pfSerNameFun)(struct UDSServiceInfo*, tUdsAppMsgInfo *);
 } tUDSService;
 
@@ -45,36 +37,36 @@ typedef struct
 /*define write data subfunction*/
 typedef struct
 {
-    uint8 Subfunction;      /*subfunction*/
-    uint8 requestSession;   /*request session*/
-    uint8 requestIdMode;    /*request id mode*/
-    uint8 requestLevel;     /*request level*/
-    void (*pfRoutine)(void);/*routine*/
+    uint8 Subfunction;         /*subfunction*/
+    uint8 requestSession;      /*request session*/
+    uint8 requestIdMode;       /*request id mode*/
+    uint8 requestLevel;        /*request level*/
+    void (*pfRoutine)(void);   /*routine*/
 } tUDS_WriteDataByIdentifierInfo;
 
 typedef enum
 {
     ERASE_MEMORY_ROUTINE_CONTROL,       /*check erase memory routine control*/
     CHECK_SUM_ROUTINE_CONTROL,          /*check sum routine control*/
-    CHECK_DEPENDENCY_ROUTINE_CONTROL,    /*check dependency routine control*/
+    CHECK_DEPENDENCY_ROUTINE_CONTROL,   /*check dependency routine control*/
     GET_VERSION,                        /*get version*/
 } tCheckRoutineCtlInfo;
 
 /***********************UDS App Const configuration Information************************/
 typedef struct
 {
-    uint8 CalledPeriod;         /*called uds period*/
+    uint8 CalledPeriod;        /*called uds period*/
     /*security request count. If over this security request count, locked server some time.*/
     uint8 SecurityRequestCnt;
-    uint16 xLockTime;         /*lock time*/
-    uint16 xS3Server;         /*s3 server time. */
+    uint16 xLockTime;          /*lock time*/
+    uint16 xS3Server;          /*s3 server time. */
 } uint16Info;
 
 typedef struct
 {
-    uint8 curSessionMode;  /*current session mode. default/program/extend mode*/
-    uint8 requsetIdMode;   /*SUPPORT_PHYSICAL_ADDR/SUPPORT_FUNCTION_ADDR*/
-    uint8 securityLevel;   /*current security level*/
+    uint8 curSessionMode;         /*current session mode. default/program/extend mode*/
+    uint8 requsetIdMode;          /*SUPPORT_PHYSICAL_ADDR/SUPPORT_FUNCTION_ADDR*/
+    uint8 securityLevel;          /*current security level*/
     uint16 xUdsS3ServerTime;      /*uds s3 server time*/
     uint16 xSecurityReqLockTime;  /*security request lock time*/
 } tUdsInfo;
@@ -92,25 +84,25 @@ typedef struct
 
 /*uds negative value define*/
 #define NEGTIVE_ID (0x7Fu)
-#define SNS (0x11u)          /*service not support*/
-#define SFNS (0x12u)        /*subfunction not support*/
-#define IMLOIF (0x13u)       /*incorrect message length or invalid format*/
-#define BRR (0x21u)          /*busy repeat request*/
-#define CNC (0x22u)          /*conditions not correct*/
-#define RSE (0x24u)          /*request  sequence error*/
-#define ROOR (0x31u)         /*request out of range*/
-#define SAD (0x33u)          /*security access denied*/
-#define IK  (0x35u)           /*invalid key*/
-#define ENOA (0x36u)         /*exceed number of attempts*/
-#define RCRRP (0x78u)        /*request correctly received-response pending*/
+#define SNS        (0x11u)          /*service not support*/
+#define SFNS       (0x12u)          /*subfunction not support*/
+#define IMLOIF     (0x13u)          /*incorrect message length or invalid format*/
+#define BRR        (0x21u)          /*busy repeat request*/
+#define CNC        (0x22u)          /*conditions not correct*/
+#define RSE        (0x24u)          /*request  sequence error*/
+#define ROOR       (0x31u)          /*request out of range*/
+#define SAD        (0x33u)          /*security access denied*/
+#define IK         (0x35u)          /*invalid key*/
+#define ENOA       (0x36u)          /*exceed number of attempts*/
+#define RCRRP      (0x78u)          /*request correctly received-response pending*/
 
 /*define session mode*/
 #define DEFALUT_SESSION (1u << 0u)       /*default session*/
 #define PROGRAM_SESSION (1u << 1u)       /*program session*/
-#define EXTEND_SESSION (1u << 2u)        /*extend session*/
+#define EXTEND_SESSION  (1u << 2u)       /*extend session*/
 
 /*security request*/
-#define NONE_SECURITY (1u << 0u)                          /*none security can request*/
+#define NONE_SECURITY    (1u << 0u)                       /*none security can request*/
 #define SECURITY_LEVEL_1 ((1 << 1u) | NONE_SECURITY)      /*security level 1 request*/
 #define SECURITY_LEVEL_2 ((1u << 2u) | SECURITY_LEVEL_1)  /*security level 2 request*/
 
@@ -161,6 +153,8 @@ tUDSService* UDS_GetUDSServiceInfo(uint8 *m_pSupServItem);
  boolean UDS_TxMsgToHost(void);
 
  void  UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint8));
+ 
+ uint32 UDS_GetUDSS3WatermarkTimerMs(void);
 #endif /*__UDS_APP_CFG_H__*/
 /***************************End file********************************/
 

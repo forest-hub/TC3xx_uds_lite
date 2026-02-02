@@ -4,10 +4,10 @@
 #include "uds_server.h"
 
 /*uds main function. ISO14229*/
-extern void UDS_MainFun(void);
+ void UDS_MainFun(void);
 
 /*UDS init*/
-extern void UDS_Init(void);
+ void UDS_Init(void);
 
 #endif /*__UDS_APP_H__*/
 
