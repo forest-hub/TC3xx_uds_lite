@@ -68,7 +68,7 @@ typedef struct
 
 }tFlsDownloadStateType;
 
-
+tFlshJobModle Flash_GetOperateFlashActiveJob(void);
 void   Flash_EraseFlashDriverInRAM(void);
 uint32 FLASH_HAL_GetEraseFlashASectorMaxTimeMs(void);
 uint32 FLASH_HAL_GetTotalSectors(const tAPPType i_appType);

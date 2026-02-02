@@ -13,13 +13,13 @@
  static tpfNetTxCallBack           gs_pfCANTPTxMsgCallBack = NULL_PTR;
  /*********************************************************/
 /***********************Static function***********************/
-#define CanTpTimeToCount(xTime) ((xTime) / g_stCANUdsNetLayerCfgInfo.ucCalledPeriod)
-#define IsSF(xNetWorkFrameType) ((((xNetWorkFrameType) >> 4u) ==  SF) ? TRUE : FALSE)
-#define IsFF(xNetWorkFrameType) ((((xNetWorkFrameType) >> 4u) ==  FF) ? TRUE : FALSE)
-#define IsCF(xNetWorkFrameType) ((((xNetWorkFrameType) >> 4u) ==  CF) ? TRUE : FALSE)
-#define IsFC(xNetWorkFrameType) ((((xNetWorkFrameType)>> 4u) ==  FC) ? TRUE : FALSE)
-#define IsRevSNValid(xSN)       ((gs_stCanTPRxDataInfo.ucSN == ((xSN) & 0x0Fu)) ? TRUE : FALSE)
-#define AddWaitSN()               do{gs_stCanTPRxDataInfo.ucSN++;\
+#define CanTpTimeToCount(xTime)    ((xTime) / g_stCANUdsNetLayerCfgInfo.ucCalledPeriod)
+#define IsSF(xNetWorkFrameType)    ((((xNetWorkFrameType) >> 4u) ==  SF) ? TRUE : FALSE)
+#define IsFF(xNetWorkFrameType)    ((((xNetWorkFrameType) >> 4u) ==  FF) ? TRUE : FALSE)
+#define IsCF(xNetWorkFrameType)    ((((xNetWorkFrameType) >> 4u) ==  CF) ? TRUE : FALSE)
+#define IsFC(xNetWorkFrameType)    ((((xNetWorkFrameType)>> 4u) ==  FC) ? TRUE : FALSE)
+#define IsRevSNValid(xSN)          ((gs_stCanTPRxDataInfo.ucSN == ((xSN) & 0x0Fu)) ? TRUE : FALSE)
+#define AddWaitSN()                do{gs_stCanTPRxDataInfo.ucSN++;\
                                      if(gs_stCanTPRxDataInfo.ucSN > 0x0Fu) {gs_stCanTPRxDataInfo.ucSN = 0u; }\
                                     }while(0u)
 
@@ -32,10 +32,10 @@
 #define IsRxMsgLenValid(address_type, frameLen, RXCANMsgLen)   ((address_type == NORMAL_ADDRESSING) ? \
                                                                (frameLen <= RXCANMsgLen - 1) : (frameLen <= RXCANMsgLen - 2))
 /*save FF data len*/
-#define SaveFFDataLen(i_xRevFFDataLen)   (gs_stCanTPRxDataInfo.stCanTpDataInfo.xFFDataLen = i_xRevFFDataLen)
-#define Seuint16(pucBSBuf, xBlockSize)   (*(pucBSBuf) = (uint8)(xBlockSize))
-#define AddBlockSize()                   do{if(0u != g_stCANUdsNetLayerCfgInfo.xBlockSize) {gs_stCanTPRxDataInfo.ucBlockSize++;}\
-                                          }while(0u)
+#define SaveFFDataLen(i_xRevFFDataLen)     (gs_stCanTPRxDataInfo.stCanTpDataInfo.xFFDataLen = i_xRevFFDataLen)
+#define Seuint16(pucBSBuf, xBlockSize)     (*(pucBSBuf) = (uint8)(xBlockSize))
+#define AddBlockSize()                        do{if(0u != g_stCANUdsNetLayerCfgInfo.xBlockSize) {gs_stCanTPRxDataInfo.ucBlockSize++;}\
+                                            }while(0u)
 
 #define SetSTmin(pucSTminBuf, xSTmin)      (*(pucSTminBuf) = (uint8)(xSTmin))
 #define SetWaitSTmin()                     (gs_stCanTPRxDataInfo.xSTmin = CanTpTimeToCount(g_stCANUdsNetLayerCfgInfo.xSTmin))

@@ -45,13 +45,13 @@
 /*********************************************************************************************************************/
 IfxGtm_Tom_Pwm_Config g_tomConfig;                                  /* Timer configuration structure                */
 IfxGtm_Tom_Pwm_Driver g_tomDriver;                                  /* Timer Driver structure                       */
-uint32 g_fadeValue = 0;                                             /* Fade value, starting from 0                  */
+uint16 g_fadeValue = 0;                                             /* Fade value, starting from 0                  */
 sint8 g_fadeDir = 1;                                                /* Fade direction variable                      */
 
 /*********************************************************************************************************************/
 /*-----------------------------------------------Function Prototypes-------------------------------------------------*/
 /*********************************************************************************************************************/
-void setDutyCycle(uint32 dutyCycle);                                /* Function to set the duty cycle of the PWM    */
+void setDutyCycle(uint16 dutyCycle);                                /* Function to set the duty cycle of the PWM    */
 
 /*********************************************************************************************************************/
 /*--------------------------------------------Function Implementations-----------------------------------------------*/
@@ -92,7 +92,7 @@ void fadeLED(void)
 }
 
 /* This function sets the duty cycle of the PWM */
-void setDutyCycle(uint32 dutyCycle)
+void setDutyCycle(uint16 dutyCycle)
 {
     g_tomConfig.dutyCycle = dutyCycle;                      /* Change the value of the duty cycle           */
     IfxGtm_Tom_Pwm_init(&g_tomDriver, &g_tomConfig);                /* Re-initialize the PWM                        */

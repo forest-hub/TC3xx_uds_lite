@@ -20,7 +20,7 @@ static tDowloadDataInfo gs_stDowloadDataInfo = {0u, 0u};
 /* received block number */
 static uint8 gs_RxBlockNum = 0u;
 /*Get bootloader version*/
-const static uint8 gs_aGetVersion[] = {0x31u, 0x01, 0x03, 0xFFu};
+
 
 /* UDS time control information config table*/
 const static uint16Info gs_stUdsAppCfg =
@@ -63,14 +63,7 @@ static uint16 UDS_GetUdsS3ServerTime(void);
 static void   UDS_SubUdsS3ServerTime(uint16 i_SubTime);
 static uint16 UDS_GetUdsSecurityReqLockTime(void);
 static void   UDS_SubUdsSecurityReqLockTime(uint16 i_SubTime);
-/**********************UDS service configuration and function************************/
 
-/**********************UDS service correlation subfunction define************************/
-static uint8 UDS_IsGetVersion(const tUdsAppMsgInfo *m_pstPDUMsg);
-static void  UDS_TXConfrimMsgCallback(uint8 i_status);
-
-static void  UDS_DoResetMCU(uint8 i_Txstatus);
-boolean UDS_ALG_HAL_GetRandom(const uint32 i_needRandomDataLen, uint8 *o_pRandomDataBuf);
 /******************************UDS service main function define***************************************/
 static void UDS_DigSession_0x10(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 static void UDS_SecurityAccess_0x27(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
@@ -81,7 +74,6 @@ static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo,
 static void UDS_TransferData_0x36(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 static void UDS_RequestTransferExit_0x37(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 static void UDS_RoutineControl_0x31(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
-static uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,const uint8 *i_pTxSeed,const uint8 KeyLen);
 static void UDS_TesterPresent_0x3E(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 static void UDS_ResetECU_0x11(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg);
 /***********************UDS service Static Global value************************/
@@ -329,7 +321,7 @@ static void UDS_SecurityAccess_0x27(struct UDSServiceInfo* i_pstUDSServiceInfo, 
 {
     uint8 requestSubfunction = 0u;
     static uint8 s_aSeedBuf[AES_SEED_LEN] = {0u};
-    boolean ret = FALSE;
+   // boolean ret = FALSE;
 
     ASSERT(NULL_PTR == m_pstPDUMsg);
     ASSERT(NULL_PTR == i_pstUDSServiceInfo);
@@ -775,24 +767,6 @@ static void UDS_RequestTransferExit_0x37(struct UDSServiceInfo* i_pstUDSServiceI
 }
 
 
-/*do reset mcu*/
-static void UDS_DoResetMCU(uint8 Txstatus)
-{
-    if(TX_MSG_SUCCESSFUL == Txstatus)
-    {
-        /*request enter bootloader mode*/
-       // Boot_RequestEnterBootloader();
-
-        /*reset ECU*/
-        print("rest ecu\r\n");
-       // WATCHDOG_HAL_SystemRest();
-     //   while(1)
-      //  {
-            /*wait watch dog reset mcu*/
-      //  }
-    }
-}
-
 /**********************UDS service correlation other function realizing************************/
 /* get uds service config information */
 tUDSService* UDS_GetUDSServiceInfo(uint8 *m_pSupServItem)
@@ -937,149 +911,6 @@ uint8 UDS_IsCurSecurityLevelRequest(uint8 i_securityLevel)
     return status;
 }
 
-/*check routine control right?*/
-static uint8 UDS_IsCheckUDS_RoutineControl_0x31Right(const tCheckRoutineCtlInfo i_eCheckRoutineCtlId,
-                                        const tUdsAppMsgInfo *m_pstPDUMsg)
-{
-    uint8 Index = 0u;
-    uint8 FindCnt = 0u;
-    uint8 *pDestRoutineCltId = NULL_PTR;
-
-    ASSERT(NULL_PTR == m_pstPDUMsg);
-
-    switch(i_eCheckRoutineCtlId)
-    {
-        case GET_VERSION:
-            pDestRoutineCltId = (uint8 *)&gs_aGetVersion[0u];
-            FindCnt = sizeof(gs_aGetVersion);
-
-            break;
-
-        default :
-
-            return FALSE;
-
-        /*This is not have break*/
-    }
-
-    if((NULL_PTR == pDestRoutineCltId) || (m_pstPDUMsg->xDataLen < FindCnt))
-    {
-
-        return FALSE;
-    }
-
-    while(Index < FindCnt)
-    {
-        if(m_pstPDUMsg->aDataBuf[Index] != pDestRoutineCltId[Index])
-        {
-            return FALSE;
-        }
-
-        Index++;
-    }
-
-    return TRUE;
-}
-
-/*Is get version?*/
-static uint8 UDS_IsGetVersion(const tUdsAppMsgInfo *m_pstPDUMsg)
-{
-    ASSERT(NULL_PTR == m_pstPDUMsg);
-
-    return UDS_IsCheckUDS_RoutineControl_0x31Right(GET_VERSION, m_pstPDUMsg);
-}
-
-typedef void (*tpfFlashOperateMoreTimecallback)(uint8);
-
-/* For erasing or programming flash were timeout callback */
-static tpfFlashOperateMoreTimecallback gs_pfFlashOperateMoreTimecallback = NULL_PTR;
-
-static void RequestMoreTimeCallback(uint8 i_TxStatus)
-{
-    if(TX_MSG_SUCCESSFUL == i_TxStatus)
-    {
-        UDS_RestartS3Server();
-    }
-
-    if(NULL_PTR != gs_pfFlashOperateMoreTimecallback)
-    {
-        (gs_pfFlashOperateMoreTimecallback)(i_TxStatus);
-        gs_pfFlashOperateMoreTimecallback = NULL_PTR;
-    }
-}
-
-void UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint8))
-{
-    tUdsAppMsgInfo stMsgBuf = {0};
-
-    ASSERT(NULL_PTR == pcallback);
-
-    stMsgBuf.xUdsId = TP_GetConfigTxMsgID();
-    UDS_SetNegativeErroCode(UDSServiceID, RCRRP, &stMsgBuf);
-    stMsgBuf.pfUDSTxMsgServiceCallBack = &RequestMoreTimeCallback;
-    gs_pfFlashOperateMoreTimecallback = pcallback;
-
-    (void)TP_WriteAFrameDataInTP(stMsgBuf.xUdsId, stMsgBuf.pfUDSTxMsgServiceCallBack,
-                                 stMsgBuf.xDataLen, stMsgBuf.aDataBuf);
-}
-
-/*********************************************************/
-/*transmitted confirm message callback*/
-static void UDS_TXConfrimMsgCallback(uint8 i_status)
-{
-    if(TX_MSG_SUCCESSFUL == i_status)
-    {
-        UDS_SetCurrentSession(PROGRAM_SESSION);
-        UDS_SetSecurityLevel(NONE_SECURITY);
-
-        /*restart s3server time*/
-        UDS_RestartS3Server();
-    }
-}
-
-/*write message to host basd on UDS for request enter bootloader mode*/
-boolean UDS_TxMsgToHost(void)
-{
-    tUdsAppMsgInfo stUdsAppMsg = {0u, 0u, {0u}, NULL_PTR};
-    boolean ret = FALSE;
-
-    stUdsAppMsg.xUdsId = TP_GetConfigTxMsgID();
-    stUdsAppMsg.xDataLen = 2u;
-    stUdsAppMsg.aDataBuf[0u] = 0x51u;
-    stUdsAppMsg.aDataBuf[1u] = 0x01u;
-    stUdsAppMsg.pfUDSTxMsgServiceCallBack = UDS_TXConfrimMsgCallback;
-
-    ret = TP_WriteAFrameDataInTP(stUdsAppMsg.xUdsId, stUdsAppMsg.pfUDSTxMsgServiceCallBack,
-                                 stUdsAppMsg.xDataLen, stUdsAppMsg.aDataBuf);
-
-    return ret;
-}
-/*check random is right?*/
-static uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,
-                                const uint8 *i_pTxSeed,
-                                const uint8 KeyLen)
-{
-    uint8 index = 0u;
-    uint8 aPlainText[AES_SEED_LEN] = {0u};
-
-    ASSERT(NULL_PTR == i_pReceivedKey);
-    ASSERT(NULL_PTR == i_pTxSeed);
-
-    UDS_ALG_HAL_DecryptData(i_pReceivedKey,(uint32) KeyLen, aPlainText);
-
-    index = 0u;
-    while(index < AES_SEED_LEN)
-    {
-        if(aPlainText[index] != i_pTxSeed[index])
-        {
-            return FALSE;
-        }
-
-        index++;
-    }
-
-    return TRUE;
-}
 /*uds time control*/
 void UDS_SystemTickCtl(void)
 {

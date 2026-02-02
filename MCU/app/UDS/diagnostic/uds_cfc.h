@@ -23,7 +23,7 @@ typedef struct
 } tUdsAppMsgInfo;
 
 
-
+void  UDS_DoResetMCU(uint8 Txstatus);
 void  Flash_SavedReceivedCheckSumCrc(uint32 i_receivedCrc);
 void  UDS_DoEraseFlash(uint8 TxStatus);
 void  UDS_DoCheckSum(uint8 TxStatus);
@@ -32,5 +32,6 @@ uint8 UDS_IsCheckSumRoutineControl(const tUdsAppMsgInfo *m_pstPDUMsg);
 uint8 UDS_IsCheckProgrammingDependency(const tUdsAppMsgInfo *m_pstPDUMsg);
 uint8 Flash_WriteFlashAppInfo(void);
 uint8 UDS_DoCheckProgrammingDependency(void);
-
+uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,const uint8 *i_pTxSeed, const uint8 KeyLen);
+uint8 UDS_IsGetVersion(const tUdsAppMsgInfo *m_pstPDUMsg);
 #endif

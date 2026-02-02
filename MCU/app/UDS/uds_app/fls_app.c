@@ -49,18 +49,17 @@
 
 /** flashloader status information */
 /*request time status define*/
-#define REQ_TIME_SUCCESSFUL (1u)
-
+#define REQ_TIME_SUCCESSFUL                       (1u)
 /*request time failed*/
-#define REQ_TIME_FAILED     (2u)
-static tEraseFlashStep gs_eEraseFlashStep = START_ERASE_FLASH;
+#define REQ_TIME_FAILED                           (2u)
+static tEraseFlashStep                            gs_eEraseFlashStep = START_ERASE_FLASH;
 /*get current erase falsh step*/
-#define Flash_GetCurEraseFlashStep()              (gs_eEraseFlashStep)
+#define Flash_GetCurEraseFlashStep()              gs_eEraseFlashStep)
 #define Flash_SetEraseFlashStep(eEraseStep)       do{  gs_eEraseFlashStep = (eEraseStep);}while(0u)
 /*Is request time successful?*/
 static uint8 gs_reqTimeStatus = 0xFFu;
-extern tFlsDownloadStateType                   gs_stFlashDownloadInfo;
-extern tAppFlashStatus                         gs_stAppFlashStatus;
+extern tFlsDownloadStateType                      gs_stFlashDownloadInfo;
+extern tAppFlashStatus                            gs_stAppFlashStatus;
 /*set request time status*/
 #define Flash_ClearRequestTimeStauts()            do{ gs_reqTimeStatus = 0xFFu;}while(0u)
 #define Flash_SetRequestMoreTimeStatus(status)    do{ gs_reqTimeStatus = status;}while(0u)
@@ -88,11 +87,6 @@ static void RequetMoreTimeSuccessfulFromHost(uint8 i_txMsgStatus)
     }
 }
 
-/*get operate flash active job*/
-tFlshJobModle Flash_GetOperateFlashActiveJob(void)
-{
-    return gs_stFlashDownloadInfo.eActiveJob;
-}
 
 /*restore operate flash active job*/
 static void Flash_RestoreOperateFlashActiveJob(const tFlshJobModle i_activeJob)
@@ -104,22 +98,16 @@ static void Flash_RestoreOperateFlashActiveJob(const tFlshJobModle i_activeJob)
 void Flash_InitDowloadInfo(void)
 {
     gs_stFlashDownloadInfo.isFingerPrintWritten = FALSE;
-
     if(TRUE == gs_stFlashDownloadInfo.isFlashDrvDownloaded)
     {
         Flash_EraseFlashDriverInRAM();
-
         gs_stFlashDownloadInfo.isFlashDrvDownloaded = TRUE;
     }
 
     Flash_SetNextDownloadStep(FL_REQUEST_STEP);
-
     Flash_SetOperateFlashActiveJob(FLASH_IDLE, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
-
     gs_stFlashDownloadInfo.pstAppFlashStatus = &gs_stAppFlashStatus;
-
     memset(&gs_stFlashDownloadInfo.stFlashOperateAPI, 0x0u, sizeof(tFlashOperateAPI));
-
     memset(&gs_stAppFlashStatus, 0xFFu, sizeof(tAppFlashStatus));
 }
 
@@ -215,8 +203,6 @@ void Flash_OperateMainFunction(void)
         Flash_SetOperateFlashActiveJob(FLASH_IDLE, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
     }
 }
-
-
 
 
 /* Fash Erase*/

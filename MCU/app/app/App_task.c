@@ -107,7 +107,6 @@ void task_uds(void *arg)
 {
     while (1)
     {
-
         TP_SystemTickCtl();
 
         UDS_SystemTickCtl();

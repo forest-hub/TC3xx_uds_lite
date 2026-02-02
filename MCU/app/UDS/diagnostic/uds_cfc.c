@@ -4,19 +4,85 @@
 #include "can_if.h"
 #include "uds_server.h"
 #include "fl_cfc.h"
+#include <UDS_alg_hal.h>
 
+typedef void (*tpfFlashOperateMoreTimecallback)(uint8);
+static tpfFlashOperateMoreTimecallback gs_pfFlashOperateMoreTimecallback = NULL_PTR;
 
-/*erase memory routine cotnrol ID*/
 const static uint8 gs_aEraseMemoryRoutineControlId[]  =  {0x31u, 0x01u, 0xFFu, 0x00u};
-/*check sum routine control ID*/
 const static uint8 gs_aCheckSumRoutineControlId[]     =  {0x31u, 0x01u, 0x02u, 0x02u};
-/*check programming dependency*/
 const static uint8 gs_aCheckProgrammingDependencyId[] =  {0x31u, 0x01u, 0xFFu, 0x01u};
+const static uint8 gs_aGetVersion[]                   =  {0x31u, 0x01u, 0x03u, 0xFFu};
 
-/*Get bootloader version*/
-const static uint8 gs_aGetVersion[] = {0x31u, 0x01, 0x03, 0xFFu};
+static void RequestMoreTimeCallback(uint8 i_TxStatus)
+{
+    if(TX_MSG_SUCCESSFUL == i_TxStatus)
+    {
+        UDS_RestartS3Server();
+    }
 
+    if(NULL_PTR != gs_pfFlashOperateMoreTimecallback)
+    {
+        (gs_pfFlashOperateMoreTimecallback)(i_TxStatus);
+        gs_pfFlashOperateMoreTimecallback = NULL_PTR;
+    }
+}
 
+/*check routine control right?*/
+static uint8 UDS_IsCheckUDS_RoutineControl_0x31Right(const tCheckRoutineCtlInfo i_eCheckRoutineCtlId,
+                                        const tUdsAppMsgInfo *m_pstPDUMsg)
+{
+    uint8 Index = 0u;
+    uint8 FindCnt = 0u;
+    uint8 *pDestRoutineCltId = NULL_PTR;
+
+    ASSERT(NULL_PTR == m_pstPDUMsg);
+
+    switch(i_eCheckRoutineCtlId)
+    {
+        case GET_VERSION:
+            pDestRoutineCltId = (uint8 *)&gs_aGetVersion[0u];
+            FindCnt = sizeof(gs_aGetVersion);
+
+            break;
+
+        default :
+
+            return FALSE;
+
+        /*This is not have break*/
+    }
+
+    if((NULL_PTR == pDestRoutineCltId) || (m_pstPDUMsg->xDataLen < FindCnt))
+    {
+
+        return FALSE;
+    }
+
+    while(Index < FindCnt)
+    {
+        if(m_pstPDUMsg->aDataBuf[Index] != pDestRoutineCltId[Index])
+        {
+            return FALSE;
+        }
+
+        Index++;
+    }
+
+    return TRUE;
+}
+
+static void UDS_TXConfrimMsgCallback(uint8 i_status)
+{
+    if(TX_MSG_SUCCESSFUL == i_status)
+    {
+        UDS_SetCurrentSession(PROGRAM_SESSION);
+        UDS_SetSecurityLevel(NONE_SECURITY);
+
+        /*restart s3server time*/
+        UDS_RestartS3Server();
+    }
+}
 
 /*check routine control right?*/
 static uint8 UDS_IsCheckRoutineControlRight(const tCheckRoutineCtlInfo i_eCheckRoutineCtlId,
@@ -193,4 +259,89 @@ static void UDS_DoResponseChecksum(uint8 i_Status)
 
      return UDS_IsCheckRoutineControlRight(CHECK_DEPENDENCY_ROUTINE_CONTROL, m_pstPDUMsg);
  }
+ /*check random is right?*/
+ uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,
+                                 const uint8 *i_pTxSeed,
+                                 const uint8 KeyLen)
+ {
+     uint8 index = 0u;
+     uint8 aPlainText[AES_SEED_LEN] = {0u};
 
+     ASSERT(NULL_PTR == i_pReceivedKey);
+     ASSERT(NULL_PTR == i_pTxSeed);
+
+     UDS_ALG_HAL_DecryptData(i_pReceivedKey,(uint32) KeyLen, aPlainText);
+
+     index = 0u;
+     while(index < AES_SEED_LEN)
+     {
+         if(aPlainText[index] != i_pTxSeed[index])
+         {
+             return FALSE;
+         }
+
+         index++;
+     }
+
+     return TRUE;
+ }
+
+ /*Is get version?*/
+ uint8 UDS_IsGetVersion(const tUdsAppMsgInfo *m_pstPDUMsg)
+ {
+     ASSERT(NULL_PTR == m_pstPDUMsg);
+
+     return UDS_IsCheckUDS_RoutineControl_0x31Right(GET_VERSION, m_pstPDUMsg);
+ }
+
+
+ /*do reset mcu*/
+ void UDS_DoResetMCU(uint8 Txstatus)
+ {
+     if(TX_MSG_SUCCESSFUL == Txstatus)
+     {
+         /*request enter bootloader mode*/
+        // Boot_RequestEnterBootloader();
+
+         /*reset ECU*/
+         print("rest ecu\r\n");
+        // WATCHDOG_HAL_SystemRest();
+      //   while(1)
+       //  {
+             /*wait watch dog reset mcu*/
+       //  }
+     }
+ }
+
+ /*write message to host basd on UDS for request enter bootloader mode*/
+ boolean UDS_TxMsgToHost(void)
+ {
+     tUdsAppMsgInfo stUdsAppMsg = {0u, 0u, {0u}, NULL_PTR};
+     boolean ret = FALSE;
+
+     stUdsAppMsg.xUdsId = TP_GetConfigTxMsgID();
+     stUdsAppMsg.xDataLen = 2u;
+     stUdsAppMsg.aDataBuf[0u] = 0x51u;
+     stUdsAppMsg.aDataBuf[1u] = 0x01u;
+     stUdsAppMsg.pfUDSTxMsgServiceCallBack = UDS_TXConfrimMsgCallback;
+
+     ret = TP_WriteAFrameDataInTP(stUdsAppMsg.xUdsId, stUdsAppMsg.pfUDSTxMsgServiceCallBack,
+                                  stUdsAppMsg.xDataLen, stUdsAppMsg.aDataBuf);
+
+     return ret;
+ }
+
+ void UDS_RequestMoreTime(const uint8 UDSServiceID, void (*pcallback)(uint8))
+ {
+     tUdsAppMsgInfo stMsgBuf = {0};
+
+     ASSERT(NULL_PTR == pcallback);
+
+     stMsgBuf.xUdsId = TP_GetConfigTxMsgID();
+     UDS_SetNegativeErroCode(UDSServiceID, RCRRP, &stMsgBuf);
+     stMsgBuf.pfUDSTxMsgServiceCallBack = &RequestMoreTimeCallback;
+     gs_pfFlashOperateMoreTimecallback = pcallback;
+
+     (void)TP_WriteAFrameDataInTP(stMsgBuf.xUdsId, stMsgBuf.pfUDSTxMsgServiceCallBack,
+                                  stMsgBuf.xDataLen, stMsgBuf.aDataBuf);
+ }
