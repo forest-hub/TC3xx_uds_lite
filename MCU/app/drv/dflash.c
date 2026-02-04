@@ -398,7 +398,7 @@ static int __ProgramDFlash(uint32 programAddr, const void *pBuf, uint32 length)
 }
 
 /* 根据地址范围得到需要操作 Flash 的信息 */
-static int __GetFlashOperationInfo(uint32 startAddr, uint32 endAddr, FlashOpera_t *pflashInfo)
+uint8 HAL_GetFlashOperationInfo(uint32 startAddr, uint32 endAddr, FlashOpera_t *pflashInfo)
 {
     if (startAddr >= endAddr)
     {
@@ -501,12 +501,13 @@ void Hal_Flash_Init(void)
   * @param[in]  length    擦除长度
   * @return     0,成功; -1,失败
   */
+#if 0
 int Hal_Flash_Erase(uint32 eraseAddr, uint32 length)
 {
     int error = 0;
     FlashOpera_t tFlashOpera;
 
-    if (__GetFlashOperationInfo(eraseAddr, eraseAddr + length - 1, &tFlashOpera) != 0)
+    if (HAL_GetFlashOperationInfo(eraseAddr, eraseAddr + length - 1, &tFlashOpera) != 0)
     {
         return -1;
     }
@@ -519,16 +520,27 @@ int Hal_Flash_Erase(uint32 eraseAddr, uint32 length)
 
     return (error != 0 ? -1 : 0);
 }
+#else
 
+uint8 Hal_Flash_Erase(FlashOpera_t *pflashInfo,uint32 erasesec)
+{
+    int error = 0;
+     //一次擦除dplash 4KB大小，pflash 16kb
+     error = pflashInfo->pfnEraseFlash(pflashInfo->ptflashSector[erasesec].start);
 
-int Hal_Flash_write(uint32 Addr, const void *pBuf, uint32 length)
+    return (error != 0 ? -1 : 0);
+}
+
+#endif
+
+uint8 Hal_Flash_write(uint32 Addr, const void *pBuf, uint32 length)
 {
     FlashOpera_t tFlashOpera;
     uint32 writeLength = 0;
     uint32 needWriteLength = 0;
     uint32 currProgramAddr = 0;
 
-    if (__GetFlashOperationInfo(Addr, Addr + length - 1, &tFlashOpera) != 0)
+    if (HAL_GetFlashOperationInfo(Addr, Addr + length - 1, &tFlashOpera) != 0)
     {
        return -1;
     }
@@ -615,6 +627,7 @@ int Hal_Flash_write(uint32 Addr, const void *pBuf, uint32 length)
            break;
 
         case FLASH_TYPE_UCB_FLASH :
+
            return -1;
          break;
 
@@ -641,7 +654,7 @@ int Hal_Flash_Program(uint32 programAddr, uint32 verifyAddr, const void *pBuf, u
 {
     FlashOpera_t tFlashOpera;
 
-    if (__GetFlashOperationInfo(programAddr, programAddr + length - 1, &tFlashOpera) != 0)
+    if (HAL_GetFlashOperationInfo(programAddr, programAddr + length - 1, &tFlashOpera) != 0)
     {
         return -1;
     }
@@ -706,7 +719,7 @@ int Hal_Flash_Write(uint32 writeAddr, const void *pBuf, uint32 length)
     FlashOpera_t tFlashOpera;
 
 
-    if (__GetFlashOperationInfo(writeAddr, writeAddr + length - 1, &tFlashOpera) != 0)
+    if (HAL_GetFlashOperationInfo(writeAddr, writeAddr + length - 1, &tFlashOpera) != 0)
     {
         return -1;
     }
@@ -768,7 +781,7 @@ int Hal_Flash_Write(uint32 writeAddr, const void *pBuf, uint32 length)
   * @param[in]  length      需要读取数据长度
   * @return     0,成功; -1,失败
   */
-uint32 Hal_Flash_Read(uint32 readAddr, void *pBuf, uint32 length)
+uint8 Hal_Flash_Read(uint32 readAddr, void *pBuf, uint32 length)
 {
     uint32 endAddr = readAddr + length - 1;
 

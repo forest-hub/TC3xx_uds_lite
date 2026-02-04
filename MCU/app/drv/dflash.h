@@ -108,8 +108,10 @@ typedef struct
 /*********************************************************************************************************************/
 /*------------------------------------------------Function Prototypes------------------------------------------------*/
 /*********************************************************************************************************************/
-void Hal_Flash_Init(void);
-int Hal_Flash_Erase(uint32 eraseAddr, uint32 length);
-uint32 Hal_Flash_Read(uint32 readAddr, void *pBuf, uint32 length);
-int Hal_Flash_write(uint32 Addr, const void *pBuf, uint32 length);
+void    Hal_Flash_Init(void);
+uint8   HAL_GetFlashOperationInfo(uint32 startAddr, uint32 endAddr, FlashOpera_t *pflashInfo);
+//int   Hal_Flash_Erase(uint32 eraseAddr, uint32 length);
+uint8  Hal_Flash_Erase(FlashOpera_t *pflashInfo,uint32 erasesec);
+uint8  Hal_Flash_Read(uint32 readAddr, void *pBuf, uint32 length);
+uint8  Hal_Flash_write(uint32 Addr, const void *pBuf, uint32 length);
 #endif /* FLASH_H_ */

@@ -49,24 +49,23 @@
 
 /** flashloader status information */
 /*request time status define*/
-#define REQ_TIME_SUCCESSFUL                       (1u)
-/*request time failed*/
-#define REQ_TIME_FAILED                           (2u)
-static tEraseFlashStep                            gs_eEraseFlashStep = START_ERASE_FLASH;
+#define REQ_TIME_SUCCESSFUL                             (1u)
+#define REQ_TIME_FAILED                                 (2u)
+static  tEraseFlashStep                                 gs_eEraseFlashStep = START_ERASE_FLASH;
 /*get current erase falsh step*/
-#define Flash_GetCurEraseFlashStep()              gs_eEraseFlashStep)
-#define Flash_SetEraseFlashStep(eEraseStep)       do{  gs_eEraseFlashStep = (eEraseStep);}while(0u)
+#define Flash_GetCurEraseFlashStep()                     (gs_eEraseFlashStep)
+#define Flash_SetEraseFlashStep(eEraseStep)              do{ gs_eEraseFlashStep = (eEraseStep);}while(0u)
 /*Is request time successful?*/
-static uint8 gs_reqTimeStatus = 0xFFu;
-extern tFlsDownloadStateType                      gs_stFlashDownloadInfo;
-extern tAppFlashStatus                            gs_stAppFlashStatus;
+static  uint8 gs_reqTimeStatus = 0xFFu;
+extern  tFlsDownloadStateType                            gs_stFlashDownloadInfo;
+extern  tAppFlashStatus                                  gs_stAppFlashStatus;
 /*set request time status*/
-#define Flash_ClearRequestTimeStauts()            do{ gs_reqTimeStatus = 0xFFu;}while(0u)
-#define Flash_SetRequestMoreTimeStatus(status)    do{ gs_reqTimeStatus = status;}while(0u)
-#define Flash_IsReqestTimeSuccessfull()           ((1u == gs_reqTimeStatus) ? TRUE : FALSE)
-#define Flash_IsRequestTimeFailed()               (((2u == gs_reqTimeStatus)) ? TRUE : FALSE)
+#define Flash_ClearRequestTimeStauts()                   do{ gs_reqTimeStatus = 0xFFu; }while(0u)
+#define Flash_SetRequestMoreTimeStatus(status)           do{ gs_reqTimeStatus = status; }while(0u)
+#define Flash_IsReqestTimeSuccessfull()                  ((1u == gs_reqTimeStatus) ? TRUE : FALSE)
+#define Flash_IsRequestTimeFailed()                      (((2u == gs_reqTimeStatus)) ? TRUE : FALSE)
 
-static uint8 Flash_Erase(boolean * o_pbIsOperateFinsh);
+static uint8 Flash_Erase(void);
 static uint8 Flash_Write(boolean * o_pbIsOperateFinsh);
 static uint8 Flash_Checksum(boolean * o_pbIsOperateFinsh);
 
@@ -100,7 +99,7 @@ void Flash_InitDowloadInfo(void)
     gs_stFlashDownloadInfo.isFingerPrintWritten = FALSE;
     if(TRUE == gs_stFlashDownloadInfo.isFlashDrvDownloaded)
     {
-        Flash_EraseFlashDriverInRAM();
+       //Flash_EraseFlashDriverInRAM();
         gs_stFlashDownloadInfo.isFlashDrvDownloaded = TRUE;
     }
 
@@ -125,14 +124,13 @@ void Flash_OperateMainFunction(void)
 
             /* do the flash erase*/
             bIsOperateFinshed = FALSE;
-            gs_stFlashDownloadInfo.errorCode = Flash_Erase(&bIsOperateFinshed);
+            gs_stFlashDownloadInfo.errorCode = Flash_Erase();
 
             break;
 
         case FLASH_PROGRAMMING:
 
             bIsOperateFinshed = TRUE;
-
             /* do the flash program*/
             gs_stFlashDownloadInfo.errorCode = Flash_Write(&bIsOperateFinshed);
 
@@ -160,7 +158,7 @@ void Flash_OperateMainFunction(void)
                 Flash_ClearRequestTimeStauts();
 
                 /*set erase flash step to start!*/
-                 Flash_SetEraseFlashStep(START_ERASE_FLASH);
+                Flash_SetEraseFlashStep(START_ERASE_FLASH);
 
                 /* initialize the flash download state */
                 Flash_InitDowloadInfo();
@@ -206,11 +204,122 @@ void Flash_OperateMainFunction(void)
 
 
 /* Fash Erase*/
-static uint8 Flash_Erase(boolean * o_pbIsOperateFinsh)
+static uint8 Flash_Erase(void)
 {
-   
 
-    return 0;
+    uint8  s_result = -1;
+    static tAPPType s_appType = APP_INVLID_TYPE;
+    static const FL_DescriptorType *o_pAppInfoStartAddr = NULL;
+    static FlashOpera_t tFlashOpera;
+    static uint32 erasecount=0;
+    static uint32 erasec=0;
+
+    //根据存入的info 信息判断哪个区域是最新的镜像，从而擦除老的区域
+    //这里只预留双bank程序，实际不实现双bank
+    /*check flash driver valid or not?*/
+    switch(Flash_GetCurEraseFlashStep())
+    {
+
+      case START_ERASE_FLASH:
+      /*get old app type*/
+       s_appType = Flash_GetOldAPPType();
+
+       if( FLASH_HAL_GetFlashBankInfo(s_appType, &o_pAppInfoStartAddr) ==TRUE )
+       {
+          if(o_pAppInfoStartAddr!=NULL)
+          {
+            memset(&tFlashOpera,0,sizeof(tFlashOpera));
+
+            Flash_SetEraseFlashStep(DO_ERASING_FLASH);
+          }
+       }
+
+       break;
+
+       case DO_ERASING_FLASH:
+
+       for(uint8 i = 0;i < PBLK_NUM_MAX;i++)
+       {
+          s_result =  HAL_GetFlashOperationInfo(o_pAppInfoStartAddr[i].address, o_pAppInfoStartAddr[i].endaddress, &tFlashOpera);
+
+          if (s_result != 0)
+          {
+              Flash_SetEraseFlashStep(END_ERASE_FLASH);
+              return s_result;
+          }
+
+          erasec = tFlashOpera.startSector;
+
+          if (erasec > tFlashOpera.endSector)
+          {
+              Flash_SetEraseFlashStep(END_ERASE_FLASH);
+              return 0xFE;
+          }
+
+          while(erasec <= tFlashOpera.endSector)
+          {
+             s_result= Hal_Flash_Erase(&tFlashOpera,erasec);
+
+             if( s_result!=0 )
+             {
+                //擦除失败，放弃擦除
+                //发送失败
+                 erasec=0;
+                Flash_SetEraseFlashStep(END_ERASE_FLASH);
+                return s_result;
+             }
+
+             erasecount++;
+             erasec++;
+
+             if(tFlashOpera.eFlashType==FLASH_TYPE_P_FLASH)
+             {
+               if( (erasecount % 2) == 0 )
+               {
+                   //喂狗
+               }
+
+             }else if(tFlashOpera.eFlashType==FLASH_TYPE_D_FLASH)
+             {
+               if( (erasecount % 8) == 0 )
+               {
+                  //喂狗
+               }
+
+             }else{
+
+                Flash_SetEraseFlashStep(END_ERASE_FLASH);
+                return 0xFF;
+              }
+          }
+
+       }
+
+       Flash_SetEraseFlashStep(END_ERASE_FLASH);
+
+       return s_result;
+       break;
+
+       case END_ERASE_FLASH:
+
+        erasecount=0;
+        erasec=0;
+        o_pAppInfoStartAddr=NULL;
+        memset(&tFlashOpera, 0, sizeof(tFlashOpera));
+
+        Flash_SetEraseFlashStep(START_ERASE_FLASH);
+
+        break;
+
+    default:
+
+        Flash_SetEraseFlashStep(START_ERASE_FLASH);
+
+        break;
+}
+
+return s_result;
+   
 }
 
 

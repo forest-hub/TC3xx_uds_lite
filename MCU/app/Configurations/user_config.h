@@ -51,7 +51,8 @@ do{\
 //#define EN_SUPPORT_APP_B
 typedef enum
 {
-	APP_A_TYPE =                0u,         /*APP A type*/
+	APP_A_TYPE = 0u,         /*APP A type*/
+	APP_B_TYPE = 1u,
 	APP_INVLID_TYPE =           0xFFu,      /*APP invalid type*/
 }tAPPType;
 

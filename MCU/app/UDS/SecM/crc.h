@@ -39,16 +39,22 @@
 
  *
  */
-#ifndef __UDS_APP_H__
-#define __UDS_APP_H__
+#ifndef CRC_H
+#define CRC_H
 
-#include "uds_server.h"
+#include "user_config.h"
 
-/*uds main function. ISO14229*/
- void UDS_MainFun(void);
+#define CRC_SEED_INIT_VALUE 0xffff
 
-/*UDS init*/
- void UDS_Init(void);
 
-#endif /*__UDS_APP_H__*/
+boolean CRC_HAL_Init(void);
+void CRC_HAL_CreatHardwareCrc(const uint8 *i_pucDataBuf, const uint32 i_ulDataLen, uint32 *m_pCurCrc);
+void CRC_HAL_StartSoftwareCrc(uint32 *m_pCurCrc);
+void CRC_HAL_CreatSoftwareCrc(const uint8 *i_pucDataBuf, const uint32 i_ulDataLen, uint32 *m_pCurCrc);
+void CRC_HAL_EndSoftwareCrc(uint32 *m_pCurCrc);
+void CRC_HAL_CalculateCRCOnce(const uint8 *i_pucDataBuf, const uint32 i_ulDataLen, uint32 *m_pCurCrc);
+void CRC_HAL_Deinit(void);
 
+
+
+#endif
