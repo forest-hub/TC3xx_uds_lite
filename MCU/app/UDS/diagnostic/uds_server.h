@@ -63,6 +63,7 @@ typedef struct
 {
     uint32 startAddr;         /*data start address*/
     uint32 dataLen;           /*data len*/
+    uint32 recvDataLen;
 } tDowloadDataInfo;
 
 /*define security access info*/

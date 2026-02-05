@@ -71,7 +71,7 @@ void  UDS_DoCheckSum(uint8 TxStatus);
 uint8 UDS_IsEraseMemoryRoutineControl(const tUdsAppMsgInfo *m_pstPDUMsg);
 uint8 UDS_IsCheckSumRoutineControl(const tUdsAppMsgInfo *m_pstPDUMsg);
 uint8 UDS_IsCheckProgrammingDependency(const tUdsAppMsgInfo *m_pstPDUMsg);
-
+void  RequetMoreTimeSuccessfulFromHost(uint8 i_txMsgStatus);
 uint8 UDS_DoCheckProgrammingDependency(void);
 uint8 UDS_IsReceivedKeyRight(const uint8 *i_pReceivedKey,const uint8 *i_pTxSeed, const uint8 KeyLen);
 uint8 UDS_IsGetVersion(const tUdsAppMsgInfo *m_pstPDUMsg);

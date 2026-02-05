@@ -781,7 +781,7 @@ int Hal_Flash_Write(uint32 writeAddr, const void *pBuf, uint32 length)
   * @param[in]  length      需要读取数据长度
   * @return     0,成功; -1,失败
   */
-uint8 Hal_Flash_Read(uint32 readAddr, void *pBuf, uint32 length)
+uint32 Hal_Flash_Read(uint32 readAddr, void *pBuf, uint32 length)
 {
     uint32 endAddr = readAddr + length - 1;
 

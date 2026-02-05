@@ -46,11 +46,9 @@
 #include "fl_cfc.h"
 #include "uds_server.h"
 #include "dflash.h"
+#include "crc.h"
 
 /** flashloader status information */
-/*request time status define*/
-#define REQ_TIME_SUCCESSFUL                             (1u)
-#define REQ_TIME_FAILED                                 (2u)
 static  tEraseFlashStep                                 gs_eEraseFlashStep = START_ERASE_FLASH;
 /*get current erase falsh step*/
 #define Flash_GetCurEraseFlashStep()                     (gs_eEraseFlashStep)
@@ -64,15 +62,31 @@ extern  tAppFlashStatus                                  gs_stAppFlashStatus;
 #define Flash_SetRequestMoreTimeStatus(status)           do{ gs_reqTimeStatus = status; }while(0u)
 #define Flash_IsReqestTimeSuccessfull()                  ((1u == gs_reqTimeStatus) ? TRUE : FALSE)
 #define Flash_IsRequestTimeFailed()                      (((2u == gs_reqTimeStatus)) ? TRUE : FALSE)
-
+#define REQ_TIME_SUCCESSFUL                              (1u)
+#define REQ_TIME_FAILED                                  (2u)
 static uint8 Flash_Erase(void);
-static uint8 Flash_Write(boolean * o_pbIsOperateFinsh);
-static uint8 Flash_Checksum(boolean * o_pbIsOperateFinsh);
+static uint8 Flash_Write(void);
+static uint8 Flash_Checksum(void);
 
+/*Init flash download*/
+void Flash_InitDowloadInfo(void)
+{
+    gs_stFlashDownloadInfo.isFingerPrintWritten = FALSE;
+    if(TRUE == gs_stFlashDownloadInfo.isFlashDrvDownloaded)
+    {
+        gs_stFlashDownloadInfo.isFlashDrvDownloaded = TRUE;
+    }
+
+    Flash_SetNextDownloadStep(FL_REQUEST_STEP);
+    Flash_SetOperateFlashActiveJob(FLASH_IDLE, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
+    gs_stFlashDownloadInfo.pstAppFlashStatus = &gs_stAppFlashStatus;
+    memset(&gs_stFlashDownloadInfo.stFlashOperateAPI, 0x0u, sizeof(tFlashOperateAPI));
+    memset(&gs_stAppFlashStatus, 0xFFu, sizeof(tAppFlashStatus));
+}
 /*Request mo retime sccessful from host.
 **i_txMsgStatus: 0 is successful, others is failed.
 */
-static void RequetMoreTimeSuccessfulFromHost(uint8 i_txMsgStatus)
+void RequetMoreTimeSuccessfulFromHost(uint8 i_txMsgStatus)
 {
     if(0u == i_txMsgStatus)
     {
@@ -84,30 +98,6 @@ static void RequetMoreTimeSuccessfulFromHost(uint8 i_txMsgStatus)
         /*tx message failed.*/
         Flash_SetRequestMoreTimeStatus(REQ_TIME_FAILED);
     }
-}
-
-
-/*restore operate flash active job*/
-static void Flash_RestoreOperateFlashActiveJob(const tFlshJobModle i_activeJob)
-{
-    gs_stFlashDownloadInfo.eActiveJob = i_activeJob;
-}
-
-/*Init flash download*/
-void Flash_InitDowloadInfo(void)
-{
-    gs_stFlashDownloadInfo.isFingerPrintWritten = FALSE;
-    if(TRUE == gs_stFlashDownloadInfo.isFlashDrvDownloaded)
-    {
-       //Flash_EraseFlashDriverInRAM();
-        gs_stFlashDownloadInfo.isFlashDrvDownloaded = TRUE;
-    }
-
-    Flash_SetNextDownloadStep(FL_REQUEST_STEP);
-    Flash_SetOperateFlashActiveJob(FLASH_IDLE, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
-    gs_stFlashDownloadInfo.pstAppFlashStatus = &gs_stAppFlashStatus;
-    memset(&gs_stFlashDownloadInfo.stFlashOperateAPI, 0x0u, sizeof(tFlashOperateAPI));
-    memset(&gs_stAppFlashStatus, 0xFFu, sizeof(tAppFlashStatus));
 }
 
 /*flash operate main function*/
@@ -132,7 +122,7 @@ void Flash_OperateMainFunction(void)
 
             bIsOperateFinshed = TRUE;
             /* do the flash program*/
-            gs_stFlashDownloadInfo.errorCode = Flash_Write(&bIsOperateFinshed);
+            gs_stFlashDownloadInfo.errorCode = Flash_Write();
 
             break;
 
@@ -140,7 +130,7 @@ void Flash_OperateMainFunction(void)
 
             /* do the flash checksum*/
             bIsOperateFinshed = TRUE;
-            gs_stFlashDownloadInfo.errorCode = Flash_Checksum(&bIsOperateFinshed);
+            gs_stFlashDownloadInfo.errorCode = Flash_Checksum();
 
             break;
 
@@ -150,7 +140,7 @@ void Flash_OperateMainFunction(void)
             {
                 Flash_ClearRequestTimeStauts();
 
-             //   Flash_RestoreInterruptedJob();
+                Flash_RestoreInterruptedJob();
                 Flash_RestoreOperateFlashActiveJob(FLASH_ERASING);
             }
             else if(TRUE == Flash_IsRequestTimeFailed())
@@ -220,7 +210,7 @@ static uint8 Flash_Erase(void)
     switch(Flash_GetCurEraseFlashStep())
     {
 
-      case START_ERASE_FLASH:
+     case START_ERASE_FLASH:
       /*get old app type*/
        s_appType = Flash_GetOldAPPType();
 
@@ -236,7 +226,7 @@ static uint8 Flash_Erase(void)
 
        break;
 
-       case DO_ERASING_FLASH:
+     case DO_ERASING_FLASH:
 
        for(uint8 i = 0;i < PBLK_NUM_MAX;i++)
        {
@@ -295,12 +285,28 @@ static uint8 Flash_Erase(void)
 
        }
 
+       if( s_result == 0)
+       {
+           gs_stAppFlashStatus.isFlashErasedSuccessfull=TRUE;
+           gs_stAppFlashStatus.isFlashProgramSuccessfull=FALSE;
+           gs_stAppFlashStatus.isFlashStructValid=TRUE;
+
+           Flash_SetAPPTypeErased(s_appType);
+       }else{
+           gs_stAppFlashStatus.isFlashErasedSuccessfull=FALSE;
+           gs_stAppFlashStatus.isFlashProgramSuccessfull=FALSE;
+           gs_stAppFlashStatus.isFlashStructValid=TRUE;
+
+           Flash_ClearAPPTypeErased(s_appType);
+       }
+
        Flash_SetEraseFlashStep(END_ERASE_FLASH);
 
        return s_result;
+
        break;
 
-       case END_ERASE_FLASH:
+      case END_ERASE_FLASH:
 
         erasecount=0;
         erasec=0;
@@ -311,33 +317,214 @@ static uint8 Flash_Erase(void)
 
         break;
 
-    default:
+      default:
 
         Flash_SetEraseFlashStep(START_ERASE_FLASH);
 
         break;
-}
+    }
 
-return s_result;
-   
+   return s_result;
 }
 
 
 /*flash write */
-static uint8 Flash_Write(boolean * o_pbIsOperateFinsh)
+static uint8 Flash_Write(void)
 {
-    
+    uint8 result = FALSE;
+    uint8 tempRet = 0u;
+    uint32 countCrc = 0u;
+    uint8 flashDataIndex = 0u;
+    uint8 fillCnt = 0u;
 
-    return 0;
+    /*check flash driver valid or not?*/
+    if(TRUE != gs_stFlashDownloadInfo.isFlashDrvDownloaded)
+    {
+        return FALSE;
+    }
+
+    result = TRUE;
+    while(gs_stFlashDownloadInfo.receiveProgramDataLength >= PROGRAM_SIZE)
+    {
+        /*count application flash crc*/
+        Flash_CreateAppStatusCrc(&countCrc);
+        if(TRUE != Flash_IsFlashAppCrcEqualStorage(countCrc))
+        {
+            /*crc not right*/
+            result = FALSE;
+
+            break;
+        }
+
+        if((TRUE == gs_stAppFlashStatus.isFlashErasedSuccessfull) &&
+           (TRUE == gs_stAppFlashStatus.isFlashStructValid))
+        {
+           // WATCHDOG_HAL_Fed();
+
+            /*write data in flash*/
+
+            DisableAllInterrupts();
+            tempRet = Hal_Flash_write(gs_stFlashDownloadInfo.startAddr,
+                                         &gs_stFlashDownloadInfo.aProgramDataBuff[flashDataIndex * PROGRAM_SIZE],
+                                         PROGRAM_SIZE);
+            EnableAllInterrupts();
+            if(0 == tempRet)
+            {
+                gs_stFlashDownloadInfo.length -= PROGRAM_SIZE;
+                gs_stFlashDownloadInfo.receiveProgramDataLength -= PROGRAM_SIZE;
+                gs_stFlashDownloadInfo.startAddr += PROGRAM_SIZE;
+
+                flashDataIndex++;
+                result=TRUE;
+            }
+            else
+            {
+                result = FALSE;
+
+                break;
+            }
+        }
+        else
+        {
+            result = FALSE;
+
+            break;
+        }
+    }
+
+    /*calculate if program data is align < 8 bytes, need to fill 0xFF to align 8 bytes.*/
+    if((0u != gs_stFlashDownloadInfo.receiveProgramDataLength) && (TRUE == result))
+    {
+        fillCnt = (uint8)(gs_stFlashDownloadInfo.receiveProgramDataLength & 0x07u);
+        fillCnt = (~fillCnt + 1u) & 0x07u;
+
+        memset((void *)&gs_stFlashDownloadInfo.aProgramDataBuff[flashDataIndex * PROGRAM_SIZE + gs_stFlashDownloadInfo.receiveProgramDataLength],
+                    0xFFu,
+                    fillCnt);
+
+        gs_stFlashDownloadInfo.receiveProgramDataLength += fillCnt;
+
+        /*write data in flash*/
+       DisableAllInterrupts();
+       tempRet = Hal_Flash_write(gs_stFlashDownloadInfo.startAddr,
+                                         &gs_stFlashDownloadInfo.aProgramDataBuff[flashDataIndex * PROGRAM_SIZE],
+                                         gs_stFlashDownloadInfo.receiveProgramDataLength);
+       EnableAllInterrupts();
+
+        if(0 == tempRet)
+        {
+            gs_stFlashDownloadInfo.length -= (gs_stFlashDownloadInfo.receiveProgramDataLength - fillCnt);
+            gs_stFlashDownloadInfo.startAddr += gs_stFlashDownloadInfo.receiveProgramDataLength;
+            gs_stFlashDownloadInfo.receiveProgramDataLength = 0;
+
+            flashDataIndex++;
+            result=TRUE;
+        }
+
+    }
+
+    if(TRUE == result)
+    {
+        gs_stAppFlashStatus.isFlashProgramSuccessfull = TRUE;
+        Flash_CreateAndSaveAppStatusCrc(countCrc);
+
+        return TRUE;
+    }
+
+    Flash_InitDowloadInfo();
+
+    return FALSE;
 }
 
 
 /*flash check sum */
-static uint8 Flash_Checksum(boolean * o_pbIsOperateFinsh)
+static uint8 Flash_Checksum(void)
 {
+    tChecksumStep checksumStep = START_CHECKSUM;
+	uint8 isSuccessful = FALSE;
+	static uint32 s_xCountCrc = 0u;
+	boolean isOperateFinsh = FALSE;
+	static uint32 s_calCRCDataLen = 0u;
+	uint32 startCalDataAddr = 0u;
+	uint32 calCRCDataLen = 0u;
+	
+	//喂狗
 
+	isSuccessful = TRUE;
+	checksumStep = Flash_GetChecksumStep();
+	switch(checksumStep)
+	{
+		case START_CHECKSUM:
+			
+			CRC_HAL_StartSoftwareCrc(&s_xCountCrc);
+			s_calCRCDataLen = 0u;
+			Flash_SetChecksumStep(DO_CHECKING_CHECKSUM);
 
-    return 0;
+			break;
+
+		case DO_CHECKING_CHECKSUM:
+
+			if((gs_stFlashDownloadInfo.receivedDataLength - s_calCRCDataLen) >= MAX_ONCE_CHECKSUM_SIZE)
+			{
+				calCRCDataLen = MAX_ONCE_CHECKSUM_SIZE;
+			}
+			else
+			{
+				calCRCDataLen = gs_stFlashDownloadInfo.receivedDataLength - s_calCRCDataLen;
+			}
+
+			startCalDataAddr = gs_stFlashDownloadInfo.receivedDataStartAddr + s_calCRCDataLen;
+			
+			CRC_HAL_CreatSoftwareCrc((const uint8 *)startCalDataAddr, calCRCDataLen, &s_xCountCrc);
+
+			s_calCRCDataLen += calCRCDataLen;
+			if(s_calCRCDataLen == gs_stFlashDownloadInfo.receivedDataLength)
+			{
+				Flash_SetChecksumStep(END_CHECKSUM);
+			}
+			else
+			{
+				/*request more time*/
+				Flash_RegInterruptedJob(FLASH_CHECKING);
+				Flash_RestoreOperateFlashActiveJob(FLASH_WAITTING);
+				
+				/*request more time from host*/
+				if(NULL_PTR != gs_stFlashDownloadInfo.pfRequestMoreTime)
+				{
+					gs_stFlashDownloadInfo.pfRequestMoreTime(gs_stFlashDownloadInfo.requestActiveJobUDSSerID, RequetMoreTimeSuccessfulFromHost);
+				}				
+			}
+
+			break;
+
+		case END_CHECKSUM:
+			
+			CRC_HAL_EndSoftwareCrc(&s_xCountCrc);
+			Flash_SaveCalculateCRCValue(s_xCountCrc);
+			isOperateFinsh = TRUE;
+
+			Flash_SetChecksumStep(START_CHECKSUM);
+			break;
+
+		default:
+
+			Flash_SetChecksumStep(START_CHECKSUM);
+			isSuccessful = FALSE;
+			isOperateFinsh = TRUE;
+			
+			break;
+	}
+
+	//喂狗
+
+	if(TRUE != isSuccessful)
+	{
+		print("%s: checksum job failed!\n", __func__);
+		
+		return isSuccessful;
+	}
+
+	return isSuccessful;	
 }
 
 

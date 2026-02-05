@@ -632,6 +632,8 @@ static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo,
     ASSERT(NULL_PTR == m_pstPDUMsg);
     ASSERT(NULL_PTR == i_pstUDSServiceInfo);
 
+    Flash_InitDowloadInfo();
+
     if(m_pstPDUMsg->xDataLen < (DOWLOAD_DATA_ADDR_LEN + DOWLOAD_DATA_LEN + 1u + 2u))
     {
         Ret = FALSE;
@@ -643,6 +645,7 @@ static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo,
     {
         /*get data addr */
         gs_stDowloadDataInfo.startAddr = 0u;
+        gs_stDowloadDataInfo.recvDataLen = 0u;
         for(Index = 0u; Index < DOWLOAD_DATA_ADDR_LEN; Index++)
         {
             gs_stDowloadDataInfo.startAddr <<= 8u;
@@ -659,6 +662,9 @@ static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo,
         }
     }
 
+    //UDS OTA
+    //刷写地址由client 根据升级文件解析后决定
+    //server负责效验刷写地址是否在刷写范围内
     /*Is download data  addr  and len valid?*/
     if(((TRUE != UDS_IsDownloadDataAddrValid(gs_stDowloadDataInfo.startAddr, gs_stDowloadDataInfo.dataLen))) ||
 		(TRUE != Ret))
@@ -687,6 +693,9 @@ static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo,
     }
     else
     {
+        gs_stDowloadDataInfo.startAddr = 0u;
+        gs_stDowloadDataInfo.dataLen=0;
+        gs_stDowloadDataInfo.recvDataLen = 0u;
         Flash_InitDowloadInfo();
 
         /*set request transfer data step(0x34 service)*/
@@ -698,9 +707,18 @@ static void UDS_RequestDownload_0x34(struct UDSServiceInfo* i_pstUDSServiceInfo,
 static void UDS_TransferData_0x36(struct UDSServiceInfo* i_pstUDSServiceInfo, tUdsAppMsgInfo *m_pstPDUMsg)
 {
     uint8 Ret = TRUE;
-
+    uint32 singleDataLen = 0u;
     ASSERT(NULL_PTR == m_pstPDUMsg);
     ASSERT(NULL_PTR == i_pstUDSServiceInfo);
+
+
+    singleDataLen = (m_pstPDUMsg->xDataLen - 2u);
+
+    if(0u == singleDataLen)
+    {
+        Ret = FALSE;
+        UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
+    }
 
     /*request sequence erro*/
     if((FL_TRANSFER_STEP != Flash_GetCurDownloadStep()) && (TRUE == Ret))
@@ -718,8 +736,6 @@ static void UDS_TransferData_0x36(struct UDSServiceInfo* i_pstUDSServiceInfo, tU
         UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, RSE, m_pstPDUMsg);
     }
 
-    gs_RxBlockNum++;
-
     /*copy flash data in flash area*/
     if((TRUE != Flash_ProgramRegion(gs_stDowloadDataInfo.startAddr, &m_pstPDUMsg->aDataBuf[2u],
                                     (m_pstPDUMsg->xDataLen - 2u))) && (TRUE == Ret))
@@ -729,18 +745,15 @@ static void UDS_TransferData_0x36(struct UDSServiceInfo* i_pstUDSServiceInfo, tU
         /*saved data and information failled!*/
         UDS_SetNegativeErroCode(i_pstUDSServiceInfo->serNum, CNC, m_pstPDUMsg);
     }
-    else
+    else if(TRUE == Ret)
     {
-        gs_stDowloadDataInfo.startAddr += (m_pstPDUMsg->xDataLen - 2u);
-        gs_stDowloadDataInfo.dataLen -= (m_pstPDUMsg->xDataLen - 2u);
+        gs_stDowloadDataInfo.recvDataLen += singleDataLen;
+        gs_RxBlockNum++;
     }
-
-    /*received all data*/
-    if((0u == gs_stDowloadDataInfo.dataLen) && (TRUE == Ret))
+    // 0x34 分块传输，每个0x34对应不同的写入flash起始地址
+    if((gs_stDowloadDataInfo.recvDataLen >= gs_stDowloadDataInfo.dataLen) && (TRUE == Ret))
     {
         gs_RxBlockNum = 0u;
-
-        /*set wait exit transfer step(0x37 service)*/
         Flash_SetNextDownloadStep(FL_EXIT_TRANSFER_STEP);
     }
 

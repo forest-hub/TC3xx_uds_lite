@@ -93,6 +93,14 @@ typedef enum
     PBLK_NUM_MAX,                  /*Max num*/
 }fl_pflash_sector_num;
 
+/*Checksum Step*/
+typedef enum
+{
+    START_CHECKSUM = 0u, /*start checksum*/
+    DO_CHECKING_CHECKSUM,/*do checking checksum*/
+    END_CHECKSUM,        /*end checksum*/
+}tChecksumStep;
+
 /* needed in the interface between flashloader runtime environment and security module */
 typedef struct
 {
@@ -126,18 +134,33 @@ typedef struct
     tFlashOperateAPI stFlashOperateAPI;            /*opeate flash API*/
 
 }tFlsDownloadStateType;
+
+void Flash_SaveAppStatusCrc(uint32 m_CurCrc);
+void Flash_CreateAppStatusCrc(uint32 *m_pCurCrc);
+void Flash_CreateAndSaveAppStatusCrc(uint32 m_CurCrc);
+void Flash_SetAPPTypeErased(const tAPPType i_erasedAPPType);
+void Flash_ClearAPPTypeErased(const tAPPType i_erasedAPPType);
+void Flash_RegInterruptedJob(const tFlshJobModle i_activeJob);
+void Flash_RestoreInterruptedJob(void);
+void Flash_SaveCalculateCRCValue(const uint32 i_CRCValue);
+void Flash_SetChecksumStep(const tChecksumStep i_checksumStep);
+void Flash_RestoreOperateFlashActiveJob(const tFlshJobModle i_activeJob);
+void Flash_RegisterJobCallback(tpfResponse i_pfDoResponse); 
+void Flash_SetNextDownloadStep(const tFlDownloadStepType i_donwloadStep);
+void Flash_SaveDownloadDataInfo(const uint32 i_dataStartAddr, const uint32 i_dataLen);
+void Flash_SetOperateFlashActiveJob(const tFlshJobModle i_activeJob, const tpfResponse i_pfActiveFinshedCallBack,
+                                    const uint8 i_requestUDSSerID,const tpfReuestMoreTime i_pfRequestMoreTimeCallback);
 uint8 Flash_WriteFlashAppInfo(void);
-tAPPType Flash_GetOldAPPType(void);
-boolean FLASH_HAL_GetFlashBankInfo(const tAPPType i_appType, const FL_DescriptorType **o_pAppInfoStartAddr);
-boolean FLASH_HAL_GetAPPInfo(const tAPPType i_appType, uint32 *o_pAppInfoStartAddr, uint32 *o_pBlockSize);
-tFlshJobModle Flash_GetOperateFlashActiveJob(void);
+uint8 UDS_IsDownloadDataAddrValid(const uint32 i_dataAddr, const uint32 i_dataLen);
+uint8 Flash_ProgramRegion(const uint32 i_addr,const uint8 *i_pDataBuf,const uint32 i_dataLen);
 uint32 FLASH_HAL_GetEraseFlashASectorMaxTimeMs(void);
 uint32 FLASH_HAL_GetTotalSectors(const tAPPType i_appType);
+boolean Flash_IsFlashAppCrcEqualStorage(uint32 m_CurCrc);
+boolean FLASH_HAL_GetFlashBankInfo(const tAPPType i_appType, const FL_DescriptorType **o_pAppInfoStartAddr);
+boolean FLASH_HAL_GetAPPInfo(const tAPPType i_appType, uint32 *o_pAppInfoStartAddr, uint32 *o_pBlockSize);
+tAPPType Flash_GetOldAPPType(void);
+tFlshJobModle Flash_GetOperateFlashActiveJob(void);
 tFlDownloadStepType Flash_GetCurDownloadStep(void);
-uint8  Flash_ProgramRegion(const uint32 i_addr,const uint8 *i_pDataBuf,const uint32 i_dataLen);
-void   Flash_SetNextDownloadStep(const tFlDownloadStepType i_donwloadStep);
-uint8  UDS_IsDownloadDataAddrValid(const uint32 i_dataAddr, const uint32 i_dataLen);
-void   Flash_SaveDownloadDataInfo(const uint32 i_dataStartAddr, const uint32 i_dataLen);
-void   Flash_SetOperateFlashActiveJob(const tFlshJobModle i_activeJob, const tpfResponse i_pfActiveFinshedCallBack,
-                                    const uint8 i_requestUDSSerID,const tpfReuestMoreTime i_pfRequestMoreTimeCallback);
+tChecksumStep Flash_GetChecksumStep(void);
+
 #endif

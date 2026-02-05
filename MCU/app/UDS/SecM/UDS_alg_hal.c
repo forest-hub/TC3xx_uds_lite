@@ -42,7 +42,7 @@
 
 #include <AES.h>
 #include <UDS_alg_hal.h>
-
+#include "Stm/Std/IfxStm.h"
 /*******************************************************************************
  * User Include
  ******************************************************************************/
@@ -61,13 +61,11 @@ uint32 TIMER_HAL_GetTimerTickCnt(void)
 {
     /*This two variables not init before used, because it used for generate random*/
     uint32 hardwareTimerTickCnt;
-    uint32 timerTickCnt;
+    uint32 timerTickCnt=0;
 
-#if 0
+
     /*For S32K1xx get timer counter(LPTIMER), get timer count will trigger the period incorrect.*/
-    hardwareTimerTickCnt = LPTMR_DRV_GetCounterValueByCount(INST_LPTMR1);
-#endif
-
+    hardwareTimerTickCnt = IfxStm_getLower(&MODULE_STM0);
     timerTickCnt = ((hardwareTimerTickCnt & 0xFFFFu)) | (timerTickCnt << 16u);
 
 

@@ -46,8 +46,11 @@
 #include "fl_cfc.h"
 #include <UDS_alg_hal.h>
 
+
+
 typedef void (*tpfFlashOperateMoreTimecallback)(uint8);
 static  tpfFlashOperateMoreTimecallback    gs_pfFlashOperateMoreTimecallback = NULL_PTR;
+/*request time status define*/
 
 const static uint8 gs_aEraseMemoryRoutineControlId[]  =  {0x31u, 0x01u, 0xFFu, 0x00u};
 const static uint8 gs_aCheckSumRoutineControlId[]     =  {0x31u, 0x01u, 0x02u, 0x02u};

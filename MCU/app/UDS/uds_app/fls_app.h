@@ -49,10 +49,10 @@
 
 
 /* the length of programming attempt counter */
-
+#define PROGRAM_SIZE                         (128u)
 #define FL_FINGER_PRINT_LENGTH               (0x09U)
 #define FL_MAX_SEGMENTS                      (60)
-
+#define MAX_ONCE_CHECKSUM_SIZE               (100000u)
 /*invalid UDS services ID*/
 #define INVALID_UDS_SERVICES_ID              (0xFFu)
 /*=======[T Y P E   D E F I N I T I O N S]====================================*/
@@ -75,6 +75,8 @@ typedef enum
     DO_ERASING_FLASH,             /*Do erase flash*/
     END_ERASE_FLASH               /*end erase flash*/
 }tEraseFlashStep;
+
+
 
 /** Segment list information of the block */
 typedef struct
@@ -116,9 +118,9 @@ typedef struct
 } tFlashParam;
 
 
-void  FLASH_APP_Init(void);
-void  Flash_InitDowloadInfo(void);
-void  Flash_OperateMainFunction(void);
+void FLASH_APP_Init(void);
+void Flash_InitDowloadInfo(void);
+void Flash_OperateMainFunction(void);
 void Flash_InitDowloadInfo(void);
 
 #endif

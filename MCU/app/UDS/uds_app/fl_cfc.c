@@ -44,29 +44,25 @@
 #include "fl_cfc.h"
 #include "fls_app.h"
 #include "crc.h"
-
 #define MAX_ERASE_SECTOR_FLASH_MS                (100u)
-#define SECTOR_LEN                               (8192u)
 
+
+
+static tChecksumStep gs_eChecksumStep = START_CHECKSUM;
 tFlsDownloadStateType                            gs_stFlashDownloadInfo;
 tAppFlashStatus                                  gs_stAppFlashStatus;
 
 #define Flash_IsFlashEraseSuccessful()           (gs_stAppFlashStatus.isFlashErasedSuccessfull)
 #define Flash_IsFlashProgramSuccessful()         (gs_stAppFlashStatus.isFlashProgramSuccessfull)
 #define Flash_IsFlashStructValid()               (gs_stAppFlashStatus.isFlashStructValid)
-#define Flash_IsFlashAppCrcEqualStorage(xCrc)    ((gs_stAppFlashStatus.crc == xCrc) ? TRUE : FALSE)
-#define Flash_CreateAppStatusCrc(o_pCrc)         do{ CRC_HAL_CalculateCRCOnce((uint8 *)&gs_stAppFlashStatus, sizeof(gs_stAppFlashStatus) - 4u, o_pCrc);}while(0u)
-#define Flash_SaveAppStatusCrc(xCrc)             do{gs_stAppFlashStatus.crc = xCrc;}while(0u)
-
-/*create app status CRC and save*/
-#define Flash_CreateAndSaveAppStatusCrc(o_pCrc)  do{ Flash_CreateAppStatusCrc(o_pCrc); Flash_SaveAppStatusCrc(*o_pCrc);}while(0u)
-#define Flash_GetAppStatusPtr() (&gs_stAppFlashStatus)
+#define Flash_GetAppStatusPtr()                  (&gs_stAppFlashStatus)
+#define Flash_SetEraseFlashStep(eEraseStep)      do{ gs_eEraseFlashStep = (eEraseStep);}while(0u)
 #define Flash_SaveAppResetHandlerAddr(resetHandlerAddr, resetHnadlerAddrLen) \
 do{\
     gs_stAppFlashStatus.appStartAddr = resetHandlerAddr;\
     gs_stAppFlashStatus.appStartAddrLen = resetHnadlerAddrLen;\
 }while(0u)
-#define Flash_SetEraseFlashStep(eEraseStep)      do{ gs_eEraseFlashStep = (eEraseStep);}while(0u)
+
 //OEM架构应该是三级架构
 //使用16KB做一个极小boot用来启动MCU,并使用HSM来仲裁bootload和APP镜像正确，通过bootload升级APP
 //这里不考虑信息安全
@@ -123,16 +119,6 @@ const FL_DescriptorType FL_Blk_B_Info[PBLK_NUM_MAX] =
     {0xAF021000U, 0xAF021FFFU,0xFFFU,    (uint16)0xFFFFU}, /* 4K,info for config*/
     {0xAF022000U, 0xAF03FFFFU,0x1DFFFU,  (uint16)0xFFFFU}, /* 120K,spare*/
 };
-
-/*flash driver config*/
-//const BlockInfo_t gs_astFlashDriverBlock[] = {
-//  {0x20000000u, 0x20000400u},
-//};
-
-/*application can used space*/
-//const BlockInfo_t gs_astBlockNumA[] = {
-//  {0x00440000u, 0x005D4000},                   /*App A information is in the block.*/
-//};
 
 //const uint32 gs_blockNumA = sizeof(gs_astBlockNumA) / sizeof(gs_astBlockNumA[0u]);
 static tAPPType Flash_GetNewestAPPType(void);
@@ -235,7 +221,54 @@ void FLASH_HAL_GetRestHanlderInfo(boolean *o_pIsEnableWriteResetHandlerInFlash, 
      return result;
  }
 
+ /*Set app type ersed*/
+ void Flash_SetAPPTypeErased(const tAPPType i_erasedAPPType)
+ {
+     if((APP_A_TYPE == i_erasedAPPType)|| (APP_B_TYPE == i_erasedAPPType) )
+     {
+         gs_stFlashDownloadInfo.erasedAPPFlag = 1u << i_erasedAPPType;
+     }
+ }
 
+ /*clear app type erased status*/
+ void Flash_ClearAPPTypeErased(const tAPPType i_erasedAPPType)
+ {
+     if((APP_A_TYPE == i_erasedAPPType)|| (APP_B_TYPE == i_erasedAPPType))
+     {
+         gs_stFlashDownloadInfo.erasedAPPFlag &= ~(1u << i_erasedAPPType);
+     }
+     else
+     {
+         /*set all app type was non erased.*/
+         gs_stFlashDownloadInfo.erasedAPPFlag = 0u;
+     }
+ }
+
+ boolean Flash_IsFlashAppCrcEqualStorage(uint32 m_CurCrc)
+ {
+     return (gs_stAppFlashStatus.crc == m_CurCrc) ? TRUE : FALSE;
+ }
+
+ void Flash_SaveAppStatusCrc(uint32 m_CurCrc)
+ {
+     gs_stAppFlashStatus.crc = m_CurCrc;
+ }
+
+ void Flash_CreateAppStatusCrc(uint32 *m_pCurCrc)
+ {
+     if (NULL_PTR != m_pCurCrc)
+     {
+         CRC_HAL_CalculateCRCOnce((uint8 *)&gs_stAppFlashStatus,
+                                  sizeof(gs_stAppFlashStatus) - 4u,
+                                  m_pCurCrc);
+     }
+ }
+
+ void Flash_CreateAndSaveAppStatusCrc(uint32 m_CurCrc)
+ {
+     Flash_CreateAppStatusCrc(&m_CurCrc);
+     Flash_SaveAppStatusCrc(m_CurCrc);
+ }
 
  /*save flash data buf*/
  static uint8 Flash_SavedFlashData(const uint8 *i_pDataBuf, const uint8 i_dataLen)
@@ -361,37 +394,42 @@ void FLASH_HAL_GetRestHanlderInfo(boolean *o_pIsEnableWriteResetHandlerInFlash, 
       gs_stFlashDownloadInfo.eDownloadStep = i_donwloadStep;
   }
 
-  /*get flash driver start and length*/
-  boolean FLASH_HAL_GetFlashDriverInfo(uint32 *o_pFlashDriverAddrStart, uint32 *o_pFlashDriverEndAddr)
-  {
-      ASSERT(NULL_PTR == o_pFlashDriverAddrStart);
-      ASSERT(NULL_PTR == o_pFlashDriverEndAddr);
-
-
-     // *o_pFlashDriverAddrStart = gs_astFlashDriverBlock[0u].xBlockStartLogicalAddr;
-     // *o_pFlashDriverEndAddr = gs_astFlashDriverBlock[0u].xBlockEndLogicalAddr;
-
-      return TRUE;
-  }
-
-
-
   /*get erase flash sector max time*/
   uint32 FLASH_HAL_GetEraseFlashASectorMaxTimeMs(void)
   {
 
-
       return MAX_ERASE_SECTOR_FLASH_MS;
   }
 
-  /*get total how much sectors in flash*/
-  uint32 FLASH_HAL_GetTotalSectors(const tAPPType i_appType)
-  {
+  /*get operate flash active job*/
+tFlshJobModle Flash_GetOperateFlashActiveJob(void)
+{
+    return gs_stFlashDownloadInfo.eActiveJob;
+}
 
+/*register interrupt job*/
+void Flash_RegInterruptedJob(const tFlshJobModle i_activeJob)
+{
+	gs_stFlashDownloadInfo.eInterruptedJob = (tFlshJobModle)i_activeJob;
+}
 
+/*restore operate flash active job*/
+void Flash_RestoreOperateFlashActiveJob(const tFlshJobModle i_activeJob)
+{
+    gs_stFlashDownloadInfo.eActiveJob = i_activeJob;
+}
 
-      return 0;
-  }
+/*restore interrupted job*/
+ void Flash_RestoreInterruptedJob(void)
+{
+	gs_stFlashDownloadInfo.eActiveJob = gs_stFlashDownloadInfo.eInterruptedJob;
+}
+
+/*Register flash job callbck. Callback will called when after flash job.*/
+void Flash_RegisterJobCallback(tpfResponse i_pfDoResponse)
+{
+	gs_stFlashDownloadInfo.pfActiveJobFinshedCallBack = i_pfDoResponse;
+}
 
   /*Is APP type erased?*/
   boolean Flash_IsAPPTypeErased(const tAPPType i_erasedAPPType)
@@ -406,63 +444,130 @@ void FLASH_HAL_GetRestHanlderInfo(boolean *o_pIsEnableWriteResetHandlerInFlash, 
       return res;
   }
 
-
-
-
-
-
-  /*get 1 sector = bytes*/
-  uint32 FLASH_HAL_Get1SectorBytes(void)
+  /*get checksum step*/
+  tChecksumStep Flash_GetChecksumStep(void)
   {
-
-
-      return SECTOR_LEN;
+      return gs_eChecksumStep;
   }
 
-  /*Is flash driver data?*/
-  boolean Flash_IsFlashDriverData(const uint32 i_dataAddr, const uint32 i_dataLen)
+  /*set checksum step*/
+  void Flash_SetChecksumStep(const tChecksumStep i_checksumStep)
   {
-      uint32 flashDrvStartAddr = 0u;
-      uint32 flashDrvEndAddr = 0u;
-      boolean res = FALSE;
-
-      res = FLASH_HAL_GetFlashDriverInfo(&flashDrvStartAddr, &flashDrvEndAddr);
-      if(TRUE == res)
-      {
-          if((i_dataAddr >= flashDrvStartAddr) && ((i_dataAddr + i_dataLen) <= flashDrvEndAddr))
-          {
-              res = TRUE;
-          }
-          else
-          {
-              res = FALSE;
-          }
-      }
-
-      return res;
+      gs_eChecksumStep = (tChecksumStep)i_checksumStep;
   }
 
+  /*save calcualte CRC value*/
+void Flash_SaveCalculateCRCValue(const uint32 i_CRCValue)
+{
+	gs_stFlashDownloadInfo.calculateCRCValue = (uint32)i_CRCValue;
+}
+
+
+/*Is valid address?*/
+boolean Flash_IsValidAddr(const tAPPType i_appType,const uint32 i_dataAddr, const uint32 i_dataLen)
+{
+    const FL_DescriptorType *o_pAppInfoStartAddr = NULL;
+
+	boolean res = FALSE;
+    boolean getBankOk = FALSE;
+    if ((i_dataAddr + i_dataLen) < i_dataAddr)
+    {
+        return FALSE;
+    }
+    
+    getBankOk = FLASH_HAL_GetFlashBankInfo(i_appType, &o_pAppInfoStartAddr);
+
+	if(TRUE == getBankOk && (o_pAppInfoStartAddr != NULL) )
+	{
+		for(uint16 index = 0;index<PBLK_NUM_MAX;index++)
+		{
+		    if( i_dataAddr >= o_pAppInfoStartAddr[index].address && i_dataAddr <= o_pAppInfoStartAddr[index].endaddress)
+		    {
+		        if((i_dataAddr+i_dataLen) <= o_pAppInfoStartAddr[index].endaddress)
+		        {
+
+		            res=TRUE;
+		        }
+		            break;
+		    }
+		}
+	}
+
+	return res;
+}
 
   /*Is download data address valid?*/
  uint8 UDS_IsDownloadDataAddrValid(const uint32 i_dataAddr, const uint32 i_dataLen)
   {
 
+    boolean res = FALSE;
+	tAPPType requestAPPType = APP_INVLID_TYPE;
 
-     return 0;
+    requestAPPType = Flash_GetOldAPPType();
+
+    res = Flash_IsValidAddr(requestAPPType,i_dataAddr, i_dataLen);
+        
+	if(TRUE == res)
+	{
+		res = Flash_IsAPPTypeErased(requestAPPType);
+
+		if(TRUE != res)
+		{
+
+		  print("%s: APP Type(%d) is not erased!\n", __func__, requestAPPType);
+
+		}
+	}
+
+    return res;
   }
 
  /*Flash program region. Called by uds servive 0x36u*/
  uint8 Flash_ProgramRegion(const uint32 i_addr,const uint8 *i_pDataBuf, const uint32 i_dataLen)
  {
     
-     return 0;
+     uint8 dataLen = (uint8)i_dataLen;
+     uint8 result = TRUE;
+
+     ASSERT(NULL_PTR == i_pDataBuf);
+
+     result = TRUE;
+     if(FL_TRANSFER_STEP != Flash_GetCurDownloadStep())
+     {
+         result = FALSE;
+     }
+
+     /*saved flash data*/
+     if(TRUE != Flash_SavedFlashData(i_pDataBuf, dataLen))
+     {
+         result = FALSE;
+     }
+
+     if(TRUE == result)
+     {
+         if((FALSE == gs_stFlashDownloadInfo.isFlashDrvDownloaded))
+         {
+
+             Flash_SetOperateFlashActiveJob(FLASH_IDLE, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
+         }
+         else
+         {
+             Flash_SetOperateFlashActiveJob(FLASH_PROGRAMMING, NULL_PTR, INVALID_UDS_SERVICES_ID, NULL_PTR);
+
+             gs_stFlashDownloadInfo.errorCode = TRUE;
+         }
+     }
+
+     /*received erro data.*/
+     if(TRUE != result)
+     {
+         Flash_InitDowloadInfo();
+     }
+
+     return result;
  }
 
-/*get operate flash active job*/
-tFlshJobModle Flash_GetOperateFlashActiveJob(void)
-{
-    return gs_stFlashDownloadInfo.eActiveJob;
-}
+
 
 /*Do check newest app information*/
 static tAPPType Flash_DoCheckNewestAPPInfo(const tAppFlashStatus * i_pAppAInfo, const tAppFlashStatus *i_pAppBInfo)
@@ -664,7 +769,7 @@ static tAPPType Flash_DoCheckNewestAPPCnt(const tAppFlashStatus * i_pAppAInfo, c
      uint32 resetHandleOffset = 0u;
      uint32 resetHandleLength = 0u;
 
-     Flash_CreateAndSaveAppStatusCrc(&crc);
+     Flash_CreateAndSaveAppStatusCrc(crc);
 
      oldAppType    = Flash_GetOldAPPType();
      newestAPPType = Flash_GetNewestAPPType();
@@ -696,7 +801,7 @@ static tAPPType Flash_DoCheckNewestAPPCnt(const tAppFlashStatus * i_pAppAInfo, c
              print("APP type =%X, APP address=0x%X\n", oldAppType, *((uint32*)resetHandleAddr));
 
              crc = 0u;
-             Flash_CreateAndSaveAppStatusCrc(&crc);
+             Flash_CreateAndSaveAppStatusCrc(crc);
          }
 
          if(NULL_PTR != pAppStatusPtr)
